@@ -134,9 +134,10 @@
     overflow:hidden; touch-action:none; }
 
   /* the cupcake the child SLIDES to the caterpillar's mouth */
-  .cake{ position:absolute; bottom:30px; font-size:54px; line-height:1; cursor:grab;
+  .cake{ position:absolute; bottom:30px; line-height:0; cursor:grab;
     touch-action:none; -webkit-user-select:none; user-select:none; z-index:4;
     transition:transform .25s; filter:drop-shadow(0 5px 3px rgba(0,0,0,.22)); }
+  .cake svg{ width:60px; height:60px; display:block; pointer-events:none; }
   .cake.active{ animation:cakepulse 1s ease-in-out infinite; }   /* "drag me!" hint */
   .cake.dragging{ cursor:grabbing; animation:none; }
   .cake.eaten{ transition:transform .25s ease-in; transform:scale(0) translateY(-22px); }
@@ -419,7 +420,6 @@ function capybaraSVG(){
       <ellipse cx="132" cy="48" rx="11" ry="13" fill="#9c6a3e"/>
       <ellipse cx="108" cy="49" rx="5" ry="6" fill="#7d5430"/>
       <ellipse cx="132" cy="49" rx="5" ry="6" fill="#7d5430"/>
-      <path class="nose" d="" fill="none" stroke="#cf9b66" stroke-width="18" stroke-linecap="round"/>
       <rect x="12" y="46" width="140" height="60" rx="30" fill="#c08a55"/>
       <ellipse cx="74" cy="92" rx="56" ry="14" fill="#cf9b66" opacity=".6"/>
       <ellipse cx="138" cy="84" rx="22" ry="18" fill="#cf9b66"/>
@@ -431,10 +431,39 @@ function capybaraSVG(){
       <path class="m-closed" d="M140 90 q7 6 14 0" stroke="#5a3b25" stroke-width="2.5" fill="none" stroke-linecap="round"/>
       <ellipse class="m-open mouth-anchor" cx="148" cy="92" rx="7.5" ry="6.5" fill="#7a3b2a"/>
       <ellipse class="m-open" cx="148" cy="95" rx="5" ry="3.5" fill="#ff7a8a"/>
-      <ellipse class="nose-tip" cx="0" cy="0" rx="0" ry="0" fill="#5a3b25"/>
     </g>
   </svg>`;
 }
+
+/* ---------- treats the capybara eats (random each time) ---------- */
+function cupcakeSVG(frost, swirl){
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M32 56 L68 56 L63 90 Q50 95 37 90 Z" fill="#e3a85f"/>
+    <path d="M40 57 L38 91 M50 57 L50 94 M60 57 L62 91" stroke="#c8893f" stroke-width="3" fill="none"/>
+    <path d="M28 58 Q24 40 38 39 Q39 25 50 25 Q61 25 62 39 Q76 40 72 58 Z" fill="${frost}"/>
+    <path d="M31 50 Q40 44 50 47 Q60 50 69 46" stroke="${swirl}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+    <rect x="48.5" y="13" width="3" height="8" rx="1.5" fill="#5a7a3a"/>
+    <circle cx="50" cy="21" r="6" fill="#e63946"/>
+    <circle cx="48" cy="19" r="1.8" fill="#ff9aa3"/></svg>`;
+}
+function appleSVG(body, hi){
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="47" y="16" width="5" height="14" rx="2.5" fill="#7a4a25"/>
+    <path d="M52 24 q12 -9 20 0 q-9 11 -20 2 Z" fill="#4fae3e"/>
+    <path d="M50 34 C40 24 22 28 22 48 C22 68 37 86 50 86 C63 86 78 68 78 48 C78 28 60 24 50 34 Z" fill="${body}"/>
+    <ellipse cx="37" cy="50" rx="6" ry="10" fill="${hi}" opacity=".5"/></svg>`;
+}
+const TREATS = [
+  cupcakeSVG('#ff8fb3','#ffd0e0'),   // pink
+  cupcakeSVG('#7ec8ff','#d6efff'),   // blue
+  cupcakeSVG('#ffd24d','#fff0b8'),   // yellow
+  cupcakeSVG('#9be07a','#dcf7cf'),   // green
+  cupcakeSVG('#c79bff','#ece0ff'),   // purple
+  cupcakeSVG('#b5764a','#e0b890'),   // chocolate
+  appleSVG('#e63946','#ff8a93'),     // red apple
+  appleSVG('#5bbf4a','#a7e89a'),     // green apple
+];
+const randomTreat = ()=> TREATS[Math.random()*TREATS.length|0];
 
 // the reward pet: a cute capybara the child feeds by sliding the cupcake to its
 // mouth. It opens up as the cupcake nears, chomps, and grows bigger each time.
@@ -445,7 +474,6 @@ class Capybara{
     this.stretch = 1;     // extra width    (a little longer)
     this.fed = 0;         // cupcakes eaten
     this.tailLen = 0;     // tail grows once the body reaches its gentle max
-    this.noseLen = 0;     // nose/snout grows forward too
     this.active = false; this.dragging = false; this.eaten = false;
     this.pendingDone = null;
     this.build();
@@ -457,15 +485,12 @@ class Capybara{
     this.capy.innerHTML = `<div class="capy-inner">${capybaraSVG()}</div>`;
     this.cake = document.createElement('div');
     this.cake.className = 'cake';
-    this.cake.textContent = '🧁';
+    this.cake.innerHTML = randomTreat();
     this.track.appendChild(this.capy);
     this.track.appendChild(this.cake);
     this.tailEl = this.capy.querySelector('.tail');
-    this.noseEl = this.capy.querySelector('.nose');
-    this.noseTip = this.capy.querySelector('.nose-tip');
     this.applyScale();
     this.updateTail();
-    this.updateNose();
     this.reset();
     // slide-to-feed (pointer events cover both touch and mouse)
     this.cake.addEventListener('pointerdown', e=> this.onDown(e));
@@ -485,30 +510,12 @@ class Capybara{
     const tipx = sx - L,      tipy = sy - 10;     // tip curls back up
     this.tailEl.setAttribute('d', `M${sx} ${sy} Q ${midx} ${midy}, ${tipx} ${tipy}`);
   }
-  // draw a snout/nose poking forward from the face, getting longer as it grows.
-  updateNose(){
-    if(!this.noseEl) return;
-    const L = this.noseLen;
-    if(L <= 2){
-      this.noseEl.setAttribute('d','');
-      if(this.noseTip) this.noseTip.setAttribute('rx','0');
-      return;
-    }
-    const sx = 150, sy = 84;                      // root, at the front of the snout
-    const tipx = sx + L, tipy = sy - 8;           // tip lifts slightly as it pokes out
-    this.noseEl.setAttribute('d', `M${sx} ${sy} Q ${sx + L*0.5} ${sy - 5}, ${tipx} ${tipy}`);
-    if(this.noseTip){
-      this.noseTip.setAttribute('cx', tipx);
-      this.noseTip.setAttribute('cy', tipy);
-      this.noseTip.setAttribute('rx', '3.4');
-      this.noseTip.setAttribute('ry', '2.8');
-    }
-  }
   // fresh cupcake resting on the right, nothing draggable yet
   reset(){
     this.active = false; this.dragging = false; this.eaten = false;
     this.capy.classList.remove('mouthopen','eat');
     this.cake.classList.remove('eaten','active','dragging');
+    this.cake.innerHTML = randomTreat();           // a fresh, randomly-coloured treat
     this.cake.style.transition = 'transform .25s';
     const w = this.track.clientWidth || 360;
     this.homeX = Math.max(170, w - 84);
@@ -582,10 +589,8 @@ class Capybara{
       this.scale   = Math.min(1.28, 1 + this.fed*0.07);    // body grows a little...
       this.stretch = Math.min(1.16, 1 + this.fed*0.04);    // ...not too stretched
       this.tailLen = Math.min(104, Math.max(0, this.fed - 4) * 16);  // then the TAIL grows!
-      this.noseLen = Math.min(82,  Math.max(0, this.fed - 4) * 12);  // ...and the NOSE too!
       this.applyScale();
       this.updateTail();
-      this.updateNose();
       // make the growth obvious + exciting: a happy bounce + a sparkle burst
       this.capy.classList.add('grow');
       setTimeout(()=> this.capy.classList.remove('grow'), 700);
