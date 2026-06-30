@@ -155,8 +155,16 @@
   .capy-svg{ display:block; width:100%; height:auto; overflow:visible;
     animation:capbob 1.1s ease-in-out infinite; transform-origin:center bottom; }
   .capy .leg{ transform-box:fill-box; transform-origin:center top; }
-  .capy .leg1{ animation:legA .6s ease-in-out infinite; }
-  .capy .leg2{ animation:legB .6s ease-in-out infinite; }
+  .capy .leg1{ animation:legA .45s ease-in-out infinite; }
+  .capy .leg2{ animation:legB .45s ease-in-out infinite; }
+  /* moving treadmill belt the capybara walks on */
+  .belt{ position:absolute; left:8px; right:8px; bottom:6px; height:26px; z-index:1;
+    border-radius:13px; overflow:hidden; background:#3c424b;
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.10), inset 0 -5px 0 rgba(0,0,0,.30); }
+  .belt::before{ content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg,#565d68 0 14px,#454c56 14px 22px);
+    animation:beltmove .45s linear infinite; }   /* slats scroll left = walking forward */
+  @keyframes beltmove{ from{ background-position-x:0; } to{ background-position-x:-22px; } }
   /* mouth crossfades open as the cupcake comes near */
   .capy .m-open{ opacity:0; transition:opacity .12s; }
   .capy .m-closed{ opacity:1; transition:opacity .12s; }
@@ -486,6 +494,9 @@ class Capybara{
     this.cake = document.createElement('div');
     this.cake.className = 'cake';
     this.cake.innerHTML = randomTreat();
+    const belt = document.createElement('div');   // moving treadmill belt
+    belt.className = 'belt';
+    this.track.appendChild(belt);
     this.track.appendChild(this.capy);
     this.track.appendChild(this.cake);
     this.tailEl = this.capy.querySelector('.tail');
