@@ -57,6 +57,8 @@
     text-shadow:0 5px 0 #bfe3f6; text-align:center; line-height:1; }
   .logo small{ display:block; font-size:clamp(15px,3vw,24px); color:#5a8fb0;
     text-shadow:none; margin-top:10px; font-weight:700; }
+  .logo-capy{ display:block; width:clamp(110px,26vw,168px); margin:0 auto 12px; }
+  .logo-capy svg{ width:100%; height:auto; display:block; }
   .menu{ display:flex; flex-direction:column; gap:20px; width:min(440px,86vw); }
   .menu .big{ cursor:pointer; border:none; font-family:inherit; font-weight:900;
     color:#fff; border-radius:24px; padding:30px 22px; font-size:clamp(22px,5vw,34px);
@@ -195,7 +197,9 @@
 
   <!-- =================== HOME =================== -->
   <section id="home" class="screen active">
-    <div class="logo">🐛 Sounds &amp; Words
+    <div class="logo">
+      <span class="logo-capy" id="logoCapy"></span>
+      Sounds &amp; Words
       <small>Tap a game to start</small>
     </div>
     <div class="menu">
@@ -562,6 +566,8 @@ function show(id){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#'+id).classList.add('active');
 }
+$('#logoCapy').innerHTML = capybaraSVG();   // the same cute capybara on the title
+
 $$('[data-home]').forEach(b=> b.addEventListener('click', ()=> show('home')));
 $$('.menu .big').forEach(b=> b.addEventListener('click', ()=>{
   const go = b.dataset.go;
