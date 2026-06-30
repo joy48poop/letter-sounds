@@ -144,9 +144,13 @@
 
   /* the capybara — face on the RIGHT, looking toward the cupcake */
   .capy{ position:absolute; bottom:14px; left:18px; width:124px; z-index:3;
-    transform-origin:left bottom; transition:transform .4s; pointer-events:none; }
+    transform-origin:left bottom; pointer-events:none;
+    transition:transform .6s cubic-bezier(.34,1.6,.5,1); }   /* springy growth */
   .capy-inner{ transform-origin:center bottom; }
   .capy.eat .capy-inner{ animation:chomp .4s; }
+  .capy.grow .capy-inner{ animation:growpop .65s ease; }      /* extra happy bounce */
+  @keyframes growpop{ 0%{ transform:scale(1); } 35%{ transform:scale(1.25); }
+    70%{ transform:scale(.95); } 100%{ transform:scale(1); } }
   .capy-svg{ display:block; width:100%; height:auto;
     animation:capbob 1.1s ease-in-out infinite; transform-origin:center bottom; }
   .capy .leg{ transform-box:fill-box; transform-origin:center top; }
@@ -429,7 +433,8 @@ function capybaraSVG(){
 class Capybara{
   constructor(trackEl){
     this.track = trackEl;
-    this.scale = 1;
+    this.scale = 1;       // overall size  (bigger)
+    this.stretch = 1;     // extra width    (longer)
     this.active = false; this.dragging = false; this.eaten = false;
     this.pendingDone = null;
     this.build();
@@ -452,7 +457,7 @@ class Capybara{
     window.addEventListener('pointerup',     e=> this.onUp(e));
     window.addEventListener('pointercancel', e=> this.onUp(e));
   }
-  applyScale(){ this.capy.style.transform = `scale(${this.scale})`; }
+  applyScale(){ this.capy.style.transform = `scale(${this.scale}) scaleX(${this.stretch})`; }
   // fresh cupcake resting on the right, nothing draggable yet
   reset(){
     this.active = false; this.dragging = false; this.eaten = false;
@@ -527,10 +532,16 @@ class Capybara{
     setTimeout(()=> this.capy.classList.remove('mouthopen'), 250);
     setTimeout(()=>{
       this.capy.classList.remove('eat');
-      this.scale = Math.min(1.6, this.scale + 0.06);   // grows bigger each cupcake
+      this.scale   = Math.min(1.7, this.scale   + 0.08);   // bigger
+      this.stretch = Math.min(2.0, this.stretch + 0.14);   // and longer!
       this.applyScale();
+      // make the growth obvious + exciting: a happy bounce + a sparkle burst
+      this.capy.classList.add('grow');
+      setTimeout(()=> this.capy.classList.remove('grow'), 700);
+      const r = this.capy.getBoundingClientRect();
+      stars(r.left + r.width/2, r.top + r.height/2);
       const done = this.pendingDone; this.pendingDone = null;
-      setTimeout(()=>{ this.reset(); if(done) done(); }, 500);
+      setTimeout(()=>{ this.reset(); if(done) done(); }, 700);
     }, 420);
   }
 }
