@@ -93,8 +93,10 @@
     background:var(--card); border-radius:28px; border:6px solid #e3ecf3;
     box-shadow:0 9px 0 #cdd9e3; display:flex; align-items:center;
     justify-content:center; font-weight:900; color:#3a4a5a;
-    font-size:clamp(70px,18vw,130px); transition:transform .07s, box-shadow .07s; }
+    font-size:clamp(70px,18vw,130px); transition:transform .07s, box-shadow .07s, opacity .2s; }
   .lcard:active{ transform:translateY(4px); box-shadow:0 4px 0 #cdd9e3; }
+  /* while the prompt is playing, the letters are frozen (can't be tapped yet) */
+  .cards.listening .lcard{ opacity:.4; pointer-events:none; }
   .lcard.good{ border-color:var(--good); background:#eafff2; animation:pop .5s; }
   .lcard.bad{ border-color:var(--bad); animation:shake .4s; }
   @keyframes pop{ 0%{transform:scale(1)} 35%{transform:scale(1.12)} 100%{transform:scale(1)} }
@@ -682,7 +684,7 @@ function nextLetter(){
 }
 
 function letterRound(){
-  L.locked = false;
+  L.locked = true;               // frozen until the "Find __" prompt finishes
   L.target = nextLetter();
   const distractor = shuffle(LETTER_KEYS.filter(k=>k!==L.target))[0];
   const choices = shuffle([L.target, distractor]);
@@ -699,19 +701,26 @@ function letterRound(){
     cards.appendChild(c);
   });
 
-  $('#lPrompt').textContent = 'Listen…';
   playPrompt();
 }
 
 // audio: phoneme  ->  keyword  ->  "Find" (recorded)  ->  phoneme again
+// The letters stay frozen until the whole prompt has finished playing.
 function playPrompt(){
   const d = LETTERS[L.target];
+  L.locked = true;                              // no tapping while it plays
+  $('#lCards').classList.add('listening');      // dim + disable the letters
+  $('#lPrompt').textContent = '👂 Listen carefully…';
   playSequence([
     { audio:`audio/letters/${d.file}` },
     { audio:`audio/keywords/${d.kwFile}` },
     { audio:`audio/keywords/find.m4a` },
     { audio:`audio/letters/${d.file}` },
-  ], ()=>{ $('#lPrompt').textContent = 'Tap the letter you heard'; });
+  ], ()=>{                                       // prompt done — now the child may choose
+    L.locked = false;
+    $('#lCards').classList.remove('listening');
+    $('#lPrompt').textContent = '👉 Tap the letter you heard';
+  });
 }
 $('#lListen').addEventListener('click', playPrompt);
 
@@ -726,7 +735,9 @@ function pickLetter(letter, el){
     $('#lPrompt').textContent = '🧁 Slide the cupcake to the capybara!';
     L.cat.feed(()=> letterRound());
   } else {
+    L.locked = true;                            // freeze again; must listen once more
     el.classList.add('bad');
+    $('#lCards').classList.add('listening');
     $('#lPrompt').textContent = 'Try again — listen!';
     setTimeout(()=>{ el.classList.remove('bad'); playPrompt(); }, 700);
   }
