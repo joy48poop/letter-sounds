@@ -70,6 +70,8 @@
   .b-letters:active{ box-shadow:0 3px 0 #c4720f; }
   .b-words{ background:linear-gradient(#6cc6ff,#3f9fe0); box-shadow:0 8px 0 #2f78ad; }
   .b-words:active{ box-shadow:0 3px 0 #2f78ad; }
+  .b-trace{ background:linear-gradient(#8ad06a,#5fb350); box-shadow:0 8px 0 #47913c; }
+  .b-trace:active{ box-shadow:0 3px 0 #47913c; }
 
   /* ---------- shared prompt ---------- */
   .prompt{ font-weight:900; color:#2f6f9e; text-align:center;
@@ -192,6 +194,22 @@
     transform:translateY(-50%); border:13px solid transparent; border-left-color:#fff7e2; }
   @media (max-width:560px){ .bubble::before, .bubble::after{ display:none; } }
 
+  /* ---------- Trace the Letter ---------- */
+  .trace-wrap{ position:relative; width:min(320px,80vw,44vh); touch-action:none;
+    -webkit-user-select:none; user-select:none; }
+  #tSvg{ display:block; width:100%; height:auto; }
+  .trace-guide{ fill:none; stroke:#e2ebf2; stroke-width:34;
+    stroke-linecap:round; stroke-linejoin:round; }
+  .food-dot{ transition:transform .2s ease, opacity .2s ease;
+    transform-box:fill-box; transform-origin:center; }
+  .food-dot.eaten{ transform:scale(0); opacity:0; }
+  .capy-head{ position:absolute; left:50%; top:50%; width:64px; height:64px;
+    margin-left:-32px; margin-top:-32px; z-index:5; pointer-events:none;
+    will-change:left,top; filter:drop-shadow(0 3px 2px rgba(0,0,0,.25)); }
+  .capy-head svg{ width:100%; height:100%; display:block; }
+  .capy-head.eat{ animation:headchomp .25s; }
+  @keyframes headchomp{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.22); } }
+
   /* ---------- celebration ---------- */
   .star{ position:fixed; font-size:26px; pointer-events:none; z-index:40; }
   @keyframes rise{ to{ transform:translateY(-120px) rotate(40deg); opacity:0; } }
@@ -222,6 +240,8 @@
         <span class="em">🔤</span> Letter Sounds</button>
       <button class="big b-words" data-go="words">
         <span class="em">📖</span> Sight Words</button>
+      <button class="big b-trace" data-go="trace">
+        <span class="em">✏️</span> Trace the Letter</button>
     </div>
   </section>
 
@@ -255,6 +275,26 @@
       <div class="board" id="wBoard"></div>
     </div>
     <div class="track" id="wTrack"></div>
+  </section>
+
+  <!-- =================== TRACE THE LETTER =================== -->
+  <section id="trace" class="screen">
+    <div class="bar">
+      <button class="icon-btn" data-home>🏠</button>
+      <div class="bar-title">✏️ Trace the Letter</div>
+      <button class="icon-btn mutebtn" title="Sound on/off">🔊</button>
+    </div>
+    <div class="play-area">
+      <div class="prompt" id="tPrompt">Trace the letter!</div>
+      <button class="listen" id="tListen"><span class="em">🔈</span> Hear it again</button>
+      <div class="trace-wrap" id="tWrap">
+        <svg id="tSvg" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg">
+          <path id="tGuide" class="trace-guide" d=""/>
+          <g id="tFood"></g>
+        </svg>
+        <div class="capy-head" id="tHead"></div>
+      </div>
+    </div>
   </section>
 
   <!-- celebration banner -->
@@ -360,6 +400,20 @@ const KEYWORD_ART = {
     <circle cx="46" cy="58" r="3.5" fill="#bff7d2" opacity=".8"/></svg>`,
 };
 
+/* stroke centre-lines for tracing each lowercase letter (viewBox 220 x 300) */
+const TRACE_PATHS = {
+  a:"M160 150 Q 150 112 106 112 Q 52 112 52 171 Q 52 230 106 230 Q 150 230 160 196 M160 118 L160 232",
+  b:"M62 62 L62 232 M62 150 Q 168 146 168 189 Q 168 232 62 226",
+  c:"M166 142 Q 150 112 108 112 Q 50 112 50 171 Q 50 230 108 230 Q 150 230 166 200",
+  d:"M158 62 L158 232 M158 150 Q 52 146 52 189 Q 52 232 158 226",
+  e:"M52 178 L170 178 Q 170 112 108 112 Q 50 112 50 171 Q 50 230 110 230 Q 150 230 166 206",
+  f:"M156 78 Q 112 60 112 106 L112 232 M74 132 L152 132",
+  g:"M160 150 Q 150 112 106 112 Q 52 112 52 171 Q 52 226 106 226 Q 152 226 160 192 M160 120 L160 252 Q 160 286 106 281 Q 74 278 64 260",
+  i:"M110 80 L110 82 M110 122 L110 232",
+  o:"M110 112 Q 50 112 50 171 Q 50 230 110 230 Q 170 230 170 171 Q 170 112 110 112",
+  u:"M56 112 L56 196 Q 56 230 108 230 Q 160 230 160 196 L160 112",
+};
+
 /* ============================================================
    HELPERS
    ============================================================ */
@@ -442,6 +496,27 @@ function capybaraSVG(){
       <ellipse class="m-open mouth-anchor" cx="148" cy="92" rx="7.5" ry="6.5" fill="#7a3b2a"/>
       <ellipse class="m-open" cx="148" cy="95" rx="5" ry="3.5" fill="#ff7a8a"/>
     </g>
+  </svg>`;
+}
+
+// just the capybara's head (used as the tracing "finger" that eats food)
+function capyHeadSVG(){
+  return `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="26" cy="22" rx="10" ry="12" fill="#9c6a3e"/>
+    <ellipse cx="54" cy="22" rx="10" ry="12" fill="#9c6a3e"/>
+    <ellipse cx="26" cy="23" rx="4.5" ry="6" fill="#7d5430"/>
+    <ellipse cx="54" cy="23" rx="4.5" ry="6" fill="#7d5430"/>
+    <ellipse cx="40" cy="45" rx="31" ry="28" fill="#c08a55"/>
+    <ellipse cx="40" cy="57" rx="18" ry="14" fill="#cf9b66"/>
+    <ellipse cx="20" cy="52" rx="4.5" ry="3.2" fill="#ff9bb0" opacity=".5"/>
+    <ellipse cx="60" cy="52" rx="4.5" ry="3.2" fill="#ff9bb0" opacity=".5"/>
+    <circle cx="30" cy="40" r="4.6" fill="#2b2b2b"/>
+    <circle cx="50" cy="40" r="4.6" fill="#2b2b2b"/>
+    <circle cx="31.6" cy="38.4" r="1.5" fill="#fff"/>
+    <circle cx="51.6" cy="38.4" r="1.5" fill="#fff"/>
+    <ellipse cx="34" cy="54" rx="2" ry="1.6" fill="#5a3b25"/>
+    <ellipse cx="46" cy="54" rx="2" ry="1.6" fill="#5a3b25"/>
+    <path d="M34 61 q6 5 12 0" stroke="#5a3b25" stroke-width="2.4" fill="none" stroke-linecap="round"/>
   </svg>`;
 }
 
@@ -655,7 +730,8 @@ $$('.menu .big').forEach(b=> b.addEventListener('click', ()=>{
   // a tap unlocks audio on most browsers
   if('speechSynthesis' in window) speechSynthesis.resume?.();
   if(go==='letters') startLetters();
-  else startWords();
+  else if(go==='words') startWords();
+  else startTrace();
 }));
 $$('.mutebtn').forEach(b=> b.addEventListener('click', ()=>{
   muted = !muted;
@@ -825,6 +901,111 @@ function checkPair(){
     }, 700);
   }
 }
+
+/* ============================================================
+   GAME 3 — TRACE THE LETTER
+   Drag the capybara head along the letter to eat the food dots.
+   A verbal prompt (sound · keyword · sound, e.g. /c/ cake /c/)
+   plays before the child traces and again when it's done.
+   ============================================================ */
+const NS = 'http://www.w3.org/2000/svg';
+const T = { target:null, bag:[], food:[], eaten:0, total:0, locked:false, dragging:false };
+
+function nextTraceLetter(){ if(T.bag.length===0) T.bag = shuffle([...LETTER_KEYS]); return T.bag.pop(); }
+
+function startTrace(){ show('trace'); T.bag = []; traceRound(); }
+
+function traceRound(){
+  T.locked = true; T.dragging = false;
+  T.target = nextTraceLetter();
+  const guide = $('#tGuide');
+  guide.setAttribute('d', TRACE_PATHS[T.target] || TRACE_PATHS.o);
+  buildFood(guide);
+  requestAnimationFrame(()=> placeHeadAtStart(guide));   // wait for layout
+  $('#tPrompt').textContent = '👂 Listen…';
+  // prompt first, THEN let the child trace
+  playTracePrompt(()=>{ T.locked = false; $('#tPrompt').textContent = '✏️ Trace it — feed the capybara!'; });
+}
+
+// scatter little food dots along the letter's stroke
+function buildFood(guide){
+  const foodG = $('#tFood'); foodG.innerHTML = ''; T.food = [];
+  const total = guide.getTotalLength(); if(!total) return;
+  const n = Math.max(8, Math.min(18, Math.round(total/42)));
+  const colors = ['#ff5d5d','#5a87ec','#c79bff','#ff9f3d','#3ec96b','#ff7a9e'];
+  for(let i=0;i<n;i++){
+    const p = guide.getPointAtLength(total*(i+0.5)/n);
+    const pos = document.createElementNS(NS,'g');
+    pos.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+    const dot = document.createElementNS(NS,'g'); dot.setAttribute('class','food-dot');
+    const c  = document.createElementNS(NS,'circle'); c.setAttribute('r','8'); c.setAttribute('fill', colors[i%colors.length]);
+    const hi = document.createElementNS(NS,'circle'); hi.setAttribute('r','2.6'); hi.setAttribute('cx','-2.4'); hi.setAttribute('cy','-2.4'); hi.setAttribute('fill','rgba(255,255,255,.75)');
+    dot.appendChild(c); dot.appendChild(hi); pos.appendChild(dot); foodG.appendChild(pos);
+    T.food.push({ el:dot, eaten:false });
+  }
+  T.total = T.food.length; T.eaten = 0;
+}
+
+function placeHeadAtStart(guide){
+  const svg = $('#tSvg'); const w = svg.getBoundingClientRect().width; if(!w) return;
+  const scale = w/220; const p = guide.getPointAtLength(0);
+  const head = $('#tHead'); head.style.left = (p.x*scale)+'px'; head.style.top = (p.y*scale)+'px';
+}
+
+function moveHead(e){
+  const r = $('#tWrap').getBoundingClientRect();
+  const head = $('#tHead');
+  head.style.left = (e.clientX - r.left) + 'px';
+  head.style.top  = (e.clientY - r.top)  + 'px';
+  for(const f of T.food){
+    if(f.eaten) continue;
+    const fr = f.el.getBoundingClientRect(); if(!fr.width) continue;
+    if(Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 30) eatFood(f);
+  }
+}
+
+function eatFood(f){
+  f.eaten = true; f.el.classList.add('eaten'); T.eaten++;
+  const head = $('#tHead'); head.classList.add('eat'); setTimeout(()=> head.classList.remove('eat'), 250);
+  if(T.eaten >= T.total) completeTrace();
+}
+
+function completeTrace(){
+  T.locked = true; T.dragging = false;
+  banner();
+  const r = $('#tWrap').getBoundingClientRect(); stars(r.left + r.width/2, r.top + r.height/2);
+  $('#tPrompt').innerHTML = `🎉 You traced <b>“${T.target}”</b>!`;
+  playTracePrompt(()=> setTimeout(traceRound, 800));   // say it again, then next letter
+}
+
+// verbal prompt: sound · keyword · sound  (e.g. /c/ cake /c/)
+function playTracePrompt(done){
+  const d = LETTERS[T.target];
+  playSequence([
+    { audio:`audio/letters/${d.file}` },
+    { audio:`audio/keywords/${d.kwFile}` },
+    { audio:`audio/letters/${d.file}` },
+  ], done);
+}
+
+/* drag the capybara head (pointer = touch + mouse) */
+$('#tHead').innerHTML = capyHeadSVG();
+(function(){
+  const wrap = $('#tWrap');
+  wrap.addEventListener('pointerdown', e=>{
+    if(T.locked) return;
+    T.dragging = true;
+    try{ wrap.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault(); moveHead(e);
+  });
+  wrap.addEventListener('pointermove', e=>{
+    if(T.locked || !T.dragging) return;
+    e.preventDefault(); moveHead(e);
+  });
+  window.addEventListener('pointerup',     ()=>{ T.dragging = false; });
+  window.addEventListener('pointercancel', ()=>{ T.dragging = false; });
+})();
+$('#tListen').addEventListener('click', ()=> playTracePrompt());
 </script>
 </body>
 </html>
