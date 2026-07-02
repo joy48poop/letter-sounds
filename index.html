@@ -198,7 +198,7 @@
   .trace-wrap{ position:relative; width:min(320px,80vw,44vh); touch-action:none;
     -webkit-user-select:none; user-select:none; }
   #tSvg{ display:block; width:100%; height:auto; }
-  .trace-guide{ fill:none; stroke:#e2ebf2; stroke-width:34;
+  .trace-guide{ fill:none; stroke:#4f5661; stroke-width:34;
     stroke-linecap:round; stroke-linejoin:round; }
   .food-dot{ transition:transform .2s ease, opacity .2s ease;
     transform-box:fill-box; transform-origin:center; }
@@ -209,6 +209,21 @@
   .capy-head svg{ width:100%; height:100%; display:block; }
   .capy-head.eat{ animation:headchomp .25s; }
   @keyframes headchomp{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.22); } }
+  /* the mouth opens while the capybara is eating a cupcake */
+  .capy-head .hd-mouth-open{ opacity:0; }
+  .capy-head.eat .hd-mouth-open{ opacity:1; }
+  .capy-head.eat .hd-mouth-closed{ opacity:0; }
+  .trace-row{ display:flex; align-items:center; justify-content:center;
+    gap:clamp(10px,3vw,30px); flex-wrap:wrap; }
+  .trace-bubble .bubble-pic{ width:clamp(84px,18vw,132px); height:clamp(84px,18vw,132px); }
+  .trace-bubble.speaking{ animation:bubblepulse .7s ease-in-out infinite; }   /* glows while audio plays */
+  @keyframes bubblepulse{ 0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.06); box-shadow:0 8px 0 #f0d394, 0 0 0 7px rgba(255,205,70,.55); } }
+  .trace-controls{ display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .next-btn{ cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#fff;
+    background:linear-gradient(#6cc6ff,#3f9fe0); box-shadow:0 7px 0 #2f78ad;
+    border-radius:20px; padding:16px 42px; font-size:clamp(20px,3.6vw,28px); }
+  .next-btn:active{ transform:translateY(4px); box-shadow:0 3px 0 #2f78ad; }
 
   /* ---------- celebration ---------- */
   .star{ position:fixed; font-size:26px; pointer-events:none; z-index:40; }
@@ -286,13 +301,20 @@
     </div>
     <div class="play-area">
       <div class="prompt" id="tPrompt">Trace the letter!</div>
-      <button class="listen" id="tListen"><span class="em">🔈</span> Hear it again</button>
-      <div class="trace-wrap" id="tWrap">
-        <svg id="tSvg" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg">
-          <path id="tGuide" class="trace-guide" d=""/>
-          <g id="tFood"></g>
-        </svg>
-        <div class="capy-head" id="tHead"></div>
+      <div class="trace-row">
+        <div class="bubble trace-bubble" id="tBubbleWrap"><div class="bubble-pic" id="tPic"></div></div>
+        <div class="trace-wrap" id="tWrap">
+          <svg id="tSvg" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg">
+            <path id="tGuide" class="trace-guide" d=""/>
+            <g id="tArrows"></g>
+            <g id="tFood"></g>
+          </svg>
+          <div class="capy-head" id="tHead"></div>
+        </div>
+      </div>
+      <div class="trace-controls">
+        <button class="listen" id="tListen"><span class="em">🔈</span> Hear it again</button>
+        <button class="next-btn hidden" id="tNext">NEXT ▶</button>
       </div>
     </div>
   </section>
@@ -516,8 +538,20 @@ function capyHeadSVG(){
     <circle cx="51.6" cy="38.4" r="1.5" fill="#fff"/>
     <ellipse cx="34" cy="54" rx="2" ry="1.6" fill="#5a3b25"/>
     <ellipse cx="46" cy="54" rx="2" ry="1.6" fill="#5a3b25"/>
-    <path d="M34 61 q6 5 12 0" stroke="#5a3b25" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path class="hd-mouth-closed" d="M34 61 q6 5 12 0" stroke="#5a3b25" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <ellipse class="hd-mouth-open" cx="40" cy="63" rx="8" ry="7" fill="#7a3b2a"/>
+    <ellipse class="hd-mouth-open" cx="40" cy="66" rx="4.5" ry="3.2" fill="#ff7a8a"/>
   </svg>`;
+}
+
+// a small yellow cupcake (the food the capybara eats while tracing)
+function makeCupcake(){
+  const el = (tag,attrs)=>{ const n=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs) n.setAttribute(k,attrs[k]); return n; };
+  const g = el('g',{ class:'food-dot' });
+  g.appendChild(el('path',{ d:'M-5 1 L5 1 L3.6 9 Q0 11 -3.6 9 Z', fill:'#e3a85f' }));   // liner
+  g.appendChild(el('path',{ d:'M-7 2 Q-8 -6 0 -7 Q8 -6 7 2 Z', fill:'#ffd24d' }));       // yellow frosting
+  g.appendChild(el('circle',{ cy:'-7.5', r:'1.9', fill:'#e63946' }));                     // cherry
+  return g;
 }
 
 /* ---------- treats the capybara eats (random each time) ---------- */
@@ -909,41 +943,69 @@ function checkPair(){
    plays before the child traces and again when it's done.
    ============================================================ */
 const NS = 'http://www.w3.org/2000/svg';
-const T = { target:null, bag:[], food:[], eaten:0, total:0, locked:false, dragging:false };
+const T = { target:null, bag:[], food:[], total:0, next:0, locked:false, dragging:false, done:false };
 
 function nextTraceLetter(){ if(T.bag.length===0) T.bag = shuffle([...LETTER_KEYS]); return T.bag.pop(); }
-
 function startTrace(){ show('trace'); T.bag = []; traceRound(); }
 
-function traceRound(){
-  T.locked = true; T.dragging = false;
-  T.target = nextTraceLetter();
-  const guide = $('#tGuide');
-  guide.setAttribute('d', TRACE_PATHS[T.target] || TRACE_PATHS.o);
-  buildFood(guide);
-  requestAnimationFrame(()=> placeHeadAtStart(guide));   // wait for layout
-  $('#tPrompt').textContent = '👂 Listen…';
-  // prompt first, THEN let the child trace
-  playTracePrompt(()=>{ T.locked = false; $('#tPrompt').textContent = '✏️ Trace it — feed the capybara!'; });
+// split a path's "d" into its separate strokes (each starts with M)
+function subPaths(d){ return (d.match(/M[^M]*/g) || []); }
+// sample evenly-spaced points along one stroke (SVG-space)
+function samplePoints(subD, spacing){
+  const tp = document.createElementNS(NS,'path'); tp.setAttribute('d', subD);
+  tp.setAttribute('visibility','hidden'); $('#tSvg').appendChild(tp);
+  const len = tp.getTotalLength();
+  const n = len < 26 ? 1 : Math.max(3, Math.round(len/spacing));
+  const pts = [];
+  for(let i=0;i<n;i++){ const p = tp.getPointAtLength(len*(i+0.5)/n); pts.push({x:p.x, y:p.y}); }
+  $('#tSvg').removeChild(tp);
+  return pts;
 }
 
-// scatter little food dots along the letter's stroke
+function traceRound(){
+  T.done = false; T.locked = true; T.dragging = false; T.next = 0;
+  $('#tNext').classList.add('hidden');
+  T.target = nextTraceLetter();
+  const guide = $('#tGuide'); guide.setAttribute('d', TRACE_PATHS[T.target] || TRACE_PATHS.o);
+  buildArrows(guide);
+  buildFood(guide);
+  $('#tPic').innerHTML = KEYWORD_ART[LETTERS[T.target].kw] || '';
+  requestAnimationFrame(()=> placeHeadAtStart(guide));
+  playTraceIntro();
+}
+
+// cupcakes along EVERY stroke, in order (so each stroke has food)
 function buildFood(guide){
   const foodG = $('#tFood'); foodG.innerHTML = ''; T.food = [];
-  const total = guide.getTotalLength(); if(!total) return;
-  const n = Math.max(8, Math.min(18, Math.round(total/42)));
-  const colors = ['#ff5d5d','#5a87ec','#c79bff','#ff9f3d','#3ec96b','#ff7a9e'];
-  for(let i=0;i<n;i++){
-    const p = guide.getPointAtLength(total*(i+0.5)/n);
-    const pos = document.createElementNS(NS,'g');
-    pos.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
-    const dot = document.createElementNS(NS,'g'); dot.setAttribute('class','food-dot');
-    const c  = document.createElementNS(NS,'circle'); c.setAttribute('r','8'); c.setAttribute('fill', colors[i%colors.length]);
-    const hi = document.createElementNS(NS,'circle'); hi.setAttribute('r','2.6'); hi.setAttribute('cx','-2.4'); hi.setAttribute('cy','-2.4'); hi.setAttribute('fill','rgba(255,255,255,.75)');
-    dot.appendChild(c); dot.appendChild(hi); pos.appendChild(dot); foodG.appendChild(pos);
-    T.food.push({ el:dot, eaten:false });
-  }
-  T.total = T.food.length; T.eaten = 0;
+  subPaths(guide.getAttribute('d')).forEach(sd=>{
+    samplePoints(sd, 40).forEach(p=>{
+      const pos = document.createElementNS(NS,'g');
+      pos.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+      const cup = makeCupcake(); pos.appendChild(cup); foodG.appendChild(pos);
+      T.food.push({ el:cup, eaten:false });
+    });
+  });
+  T.total = T.food.length; T.next = 0;
+}
+
+// small arrows inside each stroke showing the tracing direction
+function buildArrows(guide){
+  const g = $('#tArrows'); g.innerHTML = '';
+  subPaths(guide.getAttribute('d')).forEach(sd=>{
+    const tp = document.createElementNS(NS,'path'); tp.setAttribute('d', sd);
+    tp.setAttribute('visibility','hidden'); $('#tSvg').appendChild(tp);
+    const len = tp.getTotalLength();
+    const fracs = len < 20 ? [] : len < 60 ? [0.5] : [0.16, 0.5, 0.84];
+    fracs.forEach(fr=>{
+      const l = len*fr, p = tp.getPointAtLength(l), p2 = tp.getPointAtLength(Math.min(len, l+3));
+      const ang = Math.atan2(p2.y-p.y, p2.x-p.x)*180/Math.PI;
+      const a = document.createElementNS(NS,'path');
+      a.setAttribute('d','M-4 -6 L7 0 L-4 6 Z'); a.setAttribute('fill','#ffffff'); a.setAttribute('opacity','.85');
+      a.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${ang.toFixed(0)})`);
+      g.appendChild(a);
+    });
+    $('#tSvg').removeChild(tp);
+  });
 }
 
 function placeHeadAtStart(guide){
@@ -952,35 +1014,46 @@ function placeHeadAtStart(guide){
   const head = $('#tHead'); head.style.left = (p.x*scale)+'px'; head.style.top = (p.y*scale)+'px';
 }
 
+// tracing: only the NEXT cupcake in order can be eaten, so overlapping strokes
+// don't get gobbled early and the child follows the correct stroke order
 function moveHead(e){
-  const r = $('#tWrap').getBoundingClientRect();
-  const head = $('#tHead');
+  const r = $('#tWrap').getBoundingClientRect(); const head = $('#tHead');
   head.style.left = (e.clientX - r.left) + 'px';
   head.style.top  = (e.clientY - r.top)  + 'px';
-  for(const f of T.food){
-    if(f.eaten) continue;
-    const fr = f.el.getBoundingClientRect(); if(!fr.width) continue;
-    if(Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 30) eatFood(f);
+  if(T.next < T.food.length){
+    const f = T.food[T.next]; const fr = f.el.getBoundingClientRect();
+    if(fr.width && Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 34){
+      f.eaten = true; f.el.classList.add('eaten'); T.next++;
+      head.classList.add('eat'); setTimeout(()=> head.classList.remove('eat'), 260);
+      if(T.next >= T.food.length) completeTrace();
+    }
   }
 }
 
-function eatFood(f){
-  f.eaten = true; f.el.classList.add('eaten'); T.eaten++;
-  const head = $('#tHead'); head.classList.add('eat'); setTimeout(()=> head.classList.remove('eat'), 250);
-  if(T.eaten >= T.total) completeTrace();
-}
-
 function completeTrace(){
-  T.locked = true; T.dragging = false;
+  T.done = true; T.locked = true; T.dragging = false;
   banner();
   const r = $('#tWrap').getBoundingClientRect(); stars(r.left + r.width/2, r.top + r.height/2);
   $('#tPrompt').innerHTML = `🎉 You traced <b>“${T.target}”</b>!`;
-  playTracePrompt(()=> setTimeout(traceRound, 800));   // say it again, then next letter
+  $('#tNext').classList.remove('hidden');    // no audio replay — wait for NEXT
 }
 
-// verbal prompt: sound · keyword · sound  (e.g. /c/ cake /c/)
-function playTracePrompt(done){
-  const d = LETTERS[T.target];
+// "Repeat after me" + sound · keyword · sound. Tracing stays frozen until it ends.
+function playTraceIntro(){
+  T.locked = true;
+  $('#tBubbleWrap').classList.add('speaking');
+  $('#tPrompt').textContent = '🔁 Repeat after me…';
+  playLetterTriad(T.target, ()=>{
+    $('#tBubbleWrap').classList.remove('speaking');
+    if(T.done) return;                       // was a replay after finishing
+    T.locked = false;
+    $('#tPrompt').textContent = '✏️ Trace the letter!';
+  });
+}
+
+// sound · keyword · sound  (e.g. /c/ cake /c/)
+function playLetterTriad(letter, done){
+  const d = LETTERS[letter];
   playSequence([
     { audio:`audio/letters/${d.file}` },
     { audio:`audio/keywords/${d.kwFile}` },
@@ -994,8 +1067,7 @@ $('#tHead').innerHTML = capyHeadSVG();
   const wrap = $('#tWrap');
   wrap.addEventListener('pointerdown', e=>{
     if(T.locked) return;
-    T.dragging = true;
-    try{ wrap.setPointerCapture(e.pointerId); }catch(_){}
+    T.dragging = true; try{ wrap.setPointerCapture(e.pointerId); }catch(_){}
     e.preventDefault(); moveHead(e);
   });
   wrap.addEventListener('pointermove', e=>{
@@ -1005,7 +1077,8 @@ $('#tHead').innerHTML = capyHeadSVG();
   window.addEventListener('pointerup',     ()=>{ T.dragging = false; });
   window.addEventListener('pointercancel', ()=>{ T.dragging = false; });
 })();
-$('#tListen').addEventListener('click', ()=> playTracePrompt());
+$('#tListen').addEventListener('click', playTraceIntro);
+$('#tNext').addEventListener('click', traceRound);
 </script>
 </body>
 </html>
