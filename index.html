@@ -52,7 +52,9 @@
   .bar-title{ font-weight:900; font-size:clamp(18px,3.4vw,28px); color:#2f6f9e; }
 
   /* ---------- HOME ---------- */
-  #home{ justify-content:center; gap:26px; padding:20px; }
+  #home{ justify-content:flex-start; gap:20px; padding:20px; overflow-y:auto; }
+  #home > *:first-child{ margin-top:auto; }
+  #home > *:last-child{ margin-bottom:auto; }
   .logo{ font-size:clamp(34px,8vw,72px); font-weight:900; color:#2f6f9e;
     text-shadow:0 5px 0 #bfe3f6; text-align:center; line-height:1; }
   .logo small{ display:block; font-size:clamp(15px,3vw,24px); color:#5a8fb0;
@@ -72,6 +74,8 @@
   .b-words:active{ box-shadow:0 3px 0 #2f78ad; }
   .b-trace{ background:linear-gradient(#8ad06a,#5fb350); box-shadow:0 8px 0 #47913c; }
   .b-trace:active{ box-shadow:0 3px 0 #47913c; }
+  .b-race{ background:linear-gradient(#ff9a5c,#ef6d3a); box-shadow:0 8px 0 #c9521f; }
+  .b-race:active{ box-shadow:0 3px 0 #c9521f; }
 
   /* ---------- shared prompt ---------- */
   .prompt{ font-weight:900; color:#2f6f9e; text-align:center;
@@ -225,6 +229,25 @@
     border-radius:20px; padding:16px 42px; font-size:clamp(20px,3.6vw,28px); }
   .next-btn:active{ transform:translateY(4px); box-shadow:0 3px 0 #2f78ad; }
 
+  /* ---------- Letter Race ---------- */
+  .trace-wrap.race{ width:min(300px,78vw,38vh); }
+  .race-road{ fill:none; stroke:#3b414b; stroke-width:40; stroke-linecap:round; stroke-linejoin:round; }
+  .race-dash{ fill:none; stroke:#ffd24d; stroke-width:3.5; stroke-linecap:round; stroke-dasharray:2 16; }
+  .race-start{ fill:#3ec96b; }
+  .race-finish{ font-size:26px; text-anchor:middle; dominant-baseline:central; }
+  .capy-head.car{ width:56px; height:34px; margin-left:-28px; margin-top:-17px; }
+  .lanes{ width:min(440px,92vw); display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
+  .lane{ display:flex; align-items:center; gap:8px; }
+  .lane-name{ width:46px; text-align:right; font-weight:900; font-size:13px; }
+  .lane-track{ position:relative; flex:1; height:26px; background:#e9eff5; border-radius:13px;
+    overflow:hidden; box-shadow:inset 0 2px 0 rgba(0,0,0,.06); }
+  .lane-track::after{ content:""; position:absolute; right:6px; top:3px; bottom:3px;
+    width:0; border-left:3px dashed #b9c6d2; }
+  .lane-car{ position:absolute; top:50%; left:0; transform:translateY(-50%);
+    width:40px; height:24px; transition:left .12s linear; }
+  .lane-car svg{ width:100%; height:100%; display:block; }
+  .lane-flag{ font-size:18px; }
+
   /* ---------- celebration ---------- */
   .star{ position:fixed; font-size:26px; pointer-events:none; z-index:40; }
   @keyframes rise{ to{ transform:translateY(-120px) rotate(40deg); opacity:0; } }
@@ -257,6 +280,8 @@
         <span class="em">📖</span> Sight Words</button>
       <button class="big b-trace" data-go="trace">
         <span class="em">✏️</span> Trace the Letter</button>
+      <button class="big b-race" data-go="race">
+        <span class="em">🏎️</span> Letter Race</button>
     </div>
   </section>
 
@@ -315,6 +340,34 @@
       <div class="trace-controls">
         <button class="listen" id="tListen"><span class="em">🔈</span> Hear it again</button>
         <button class="next-btn hidden" id="tNext">NEXT ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== LETTER RACE =================== -->
+  <section id="race" class="screen">
+    <div class="bar">
+      <button class="icon-btn" data-home>🏠</button>
+      <div class="bar-title">🏎️ Letter Race</div>
+      <button class="icon-btn mutebtn" title="Sound on/off">🔊</button>
+    </div>
+    <div class="play-area">
+      <div class="prompt" id="rPrompt">Get ready to race!</div>
+      <div class="lanes" id="rLanes"></div>
+      <div class="trace-wrap race" id="rWrap">
+        <svg id="rSvg" viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg">
+          <path id="rRoad" class="race-road" d=""/>
+          <path id="rDash" class="race-dash" d=""/>
+          <g id="rArrows"></g>
+          <g id="rDots"></g>
+          <circle id="rStart" class="race-start" r="10"/>
+          <text id="rFinish" class="race-finish">🏁</text>
+        </svg>
+        <div class="capy-head car" id="rCar"></div>
+      </div>
+      <div class="trace-controls">
+        <button class="listen" id="rListen"><span class="em">🔈</span> Hear it again</button>
+        <button class="next-btn hidden" id="rNext">NEXT ▶</button>
       </div>
     </div>
   </section>
@@ -765,7 +818,8 @@ $$('.menu .big').forEach(b=> b.addEventListener('click', ()=>{
   if('speechSynthesis' in window) speechSynthesis.resume?.();
   if(go==='letters') startLetters();
   else if(go==='words') startWords();
-  else startTrace();
+  else if(go==='trace') startTrace();
+  else startRace();
 }));
 $$('.mutebtn').forEach(b=> b.addEventListener('click', ()=>{
   muted = !muted;
@@ -1079,6 +1133,189 @@ $('#tHead').innerHTML = capyHeadSVG();
 })();
 $('#tListen').addEventListener('click', playTraceIntro);
 $('#tNext').addEventListener('click', traceRound);
+
+/* ============================================================
+   GAME 4 — LETTER RACE
+   Same tracing, but the letter is a race track and the icon is a
+   car. Trace to the finish before the (computer) opponents. The
+   child's completion time is recorded (best time kept).
+   ============================================================ */
+const RACERS = [
+  { name:'You',  color:'#e63946', you:true },
+  { name:'Bolt', color:'#3f9fe0' },
+  { name:'Zoom', color:'#39c06b' },
+  { name:'Ace',  color:'#c079e6' },
+];
+const R = { target:null, bag:[], dots:[], total:0, next:0, locked:false, dragging:false,
+            racing:false, finished:false, startTime:0, raf:0, opps:[] };
+
+function carSVG(color){
+  return `<svg viewBox="0 0 90 54" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="45" cy="49" rx="36" ry="4" fill="rgba(0,0,0,.18)"/>
+    <path d="M8 40 L20 40 L30 27 L52 25 L64 33 L82 36 Q88 37 88 42 L88 44 L8 44 Z" fill="${color}"/>
+    <path d="M32 29 L50 27 L60 33 L34 34 Z" fill="#cdeeff" opacity=".9"/>
+    <rect x="10" y="39" width="76" height="4" rx="2" fill="rgba(255,255,255,.3)"/>
+    <circle cx="27" cy="45" r="8" fill="#242830"/><circle cx="27" cy="45" r="3.4" fill="#c9ced6"/>
+    <circle cx="66" cy="45" r="8" fill="#242830"/><circle cx="66" cy="45" r="3.4" fill="#c9ced6"/>
+  </svg>`;
+}
+
+// sample points along a stroke, using a given SVG as the measuring surface
+function sampleAlong(svgSel, subD, spacing){
+  const svg = $(svgSel); const tp = document.createElementNS(NS,'path');
+  tp.setAttribute('d', subD); tp.setAttribute('visibility','hidden'); svg.appendChild(tp);
+  const len = tp.getTotalLength();
+  const n = len < 26 ? 1 : Math.max(3, Math.round(len/spacing));
+  const pts = [];
+  for(let i=0;i<n;i++){ const p = tp.getPointAtLength(len*(i+0.5)/n); pts.push({x:p.x, y:p.y}); }
+  svg.removeChild(tp); return pts;
+}
+
+function nextRaceLetter(){ if(R.bag.length===0) R.bag = shuffle([...LETTER_KEYS]); return R.bag.pop(); }
+function startRace(){ show('race'); R.bag = []; buildLanes(); raceRound(); }
+
+function buildLanes(){
+  const box = $('#rLanes'); box.innerHTML = '';
+  RACERS.forEach((rc,i)=>{
+    const lane = document.createElement('div'); lane.className = 'lane';
+    lane.innerHTML = `<span class="lane-name" style="color:${rc.color}">${rc.name}</span>`+
+      `<div class="lane-track"><div class="lane-car" id="laneCar${i}">${carSVG(rc.color)}</div></div>`+
+      `<span class="lane-flag">🏁</span>`;
+    box.appendChild(lane);
+  });
+}
+function setLane(i, p){
+  const c = document.getElementById('laneCar'+i); if(!c) return;
+  p = Math.max(0, Math.min(1, p));
+  c.style.left = `calc(${(p*100).toFixed(1)}% - ${(p*40).toFixed(0)}px)`;
+}
+
+function raceRound(){
+  R.locked = true; R.dragging = false; R.racing = false; R.finished = false;
+  cancelAnimationFrame(R.raf); R.next = 0;
+  $('#rNext').classList.add('hidden');
+  R.target = nextRaceLetter();
+  const d = TRACE_PATHS[R.target] || TRACE_PATHS.o;
+  $('#rRoad').setAttribute('d', d); $('#rDash').setAttribute('d', d);
+  buildRaceArrows(d); buildRaceDots(d);
+  RACERS.forEach((_,i)=> setLane(i, 0));
+  // opponents get random (beatable) finish times, 8–15s
+  R.opps = RACERS.map((rc,i)=> rc.you ? null : { i, t: 8 + Math.random()*7 }).filter(Boolean);
+  requestAnimationFrame(()=>{ placeRaceMarkers(); placeCarAtStart(); });
+  $('#rPrompt').textContent = '👂 Listen…';
+  // listen first (frozen), then race
+  playLetterTriad(R.target, ()=>{ R.locked = false; $('#rPrompt').innerHTML = '🏁 Trace to the finish — GO fast!'; });
+}
+
+function buildRaceDots(d){
+  const g = $('#rDots'); g.innerHTML = ''; R.dots = [];
+  subPaths(d).forEach(sd=>{
+    sampleAlong('#rSvg', sd, 30).forEach(p=>{
+      const pos = document.createElementNS(NS,'g');
+      pos.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+      const dot = document.createElementNS(NS,'g'); dot.setAttribute('class','food-dot');
+      const c = document.createElementNS(NS,'circle'); c.setAttribute('r','4.5'); c.setAttribute('fill','#ffffff'); c.setAttribute('opacity','.95');
+      dot.appendChild(c); pos.appendChild(dot); g.appendChild(pos);
+      R.dots.push({ el:dot, done:false });
+    });
+  });
+  R.total = R.dots.length; R.next = 0;
+}
+
+function buildRaceArrows(d){
+  const g = $('#rArrows'); g.innerHTML = '';
+  subPaths(d).forEach(sd=>{
+    const tp = document.createElementNS(NS,'path'); tp.setAttribute('d', sd);
+    tp.setAttribute('visibility','hidden'); $('#rSvg').appendChild(tp);
+    const len = tp.getTotalLength();
+    const fracs = len < 20 ? [] : len < 60 ? [0.5] : [0.2, 0.55, 0.9];
+    fracs.forEach(fr=>{
+      const l = len*fr, p = tp.getPointAtLength(l), p2 = tp.getPointAtLength(Math.min(len, l+3));
+      const ang = Math.atan2(p2.y-p.y, p2.x-p.x)*180/Math.PI;
+      const a = document.createElementNS(NS,'path');
+      a.setAttribute('d','M-4 -6 L7 0 L-4 6 Z'); a.setAttribute('fill','#ffd24d'); a.setAttribute('opacity','.9');
+      a.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${ang.toFixed(0)})`);
+      g.appendChild(a);
+    });
+    $('#rSvg').removeChild(tp);
+  });
+}
+
+function placeRaceMarkers(){
+  const road = $('#rRoad'); const len = road.getTotalLength();
+  const s = road.getPointAtLength(0), e = road.getPointAtLength(len);
+  const st = $('#rStart'); st.setAttribute('cx', s.x); st.setAttribute('cy', s.y);
+  const fn = $('#rFinish'); fn.setAttribute('x', e.x); fn.setAttribute('y', e.y);
+}
+function placeCarAtStart(){
+  const svg = $('#rSvg'); const w = svg.getBoundingClientRect().width; if(!w) return;
+  const scale = w/220; const p = $('#rRoad').getPointAtLength(0);
+  const car = $('#rCar'); car.style.left = (p.x*scale)+'px'; car.style.top = (p.y*scale)+'px';
+}
+
+function moveCar(e){
+  const r = $('#rWrap').getBoundingClientRect(); const car = $('#rCar');
+  car.style.left = (e.clientX - r.left) + 'px';
+  car.style.top  = (e.clientY - r.top)  + 'px';
+  if(!R.racing && !R.finished) startRaceClock();
+  if(R.next < R.dots.length){
+    const f = R.dots[R.next]; const fr = f.el.getBoundingClientRect();
+    if(fr.width && Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 30){
+      f.done = true; f.el.classList.add('eaten'); R.next++;
+      if(R.next >= R.dots.length) finishRace();
+    }
+  }
+}
+
+function startRaceClock(){
+  if(R.racing) return;
+  R.racing = true; R.startTime = performance.now();
+  cancelAnimationFrame(R.raf); R.raf = requestAnimationFrame(raceTick);
+}
+function raceTick(){
+  if(!R.racing) return;
+  if(!$('#race').classList.contains('active')){ R.racing = false; return; }
+  const elapsed = (performance.now() - R.startTime)/1000;
+  R.opps.forEach(o=> setLane(o.i, Math.min(1, elapsed/o.t)));
+  setLane(0, R.total ? R.next/R.total : 0);
+  R.raf = requestAnimationFrame(raceTick);
+}
+
+function finishRace(){
+  if(R.finished) return;
+  R.finished = true; R.racing = false; cancelAnimationFrame(R.raf);
+  const t = (performance.now() - R.startTime)/1000;
+  setLane(0, 1);
+  const faster = R.opps.filter(o=> o.t < t).length;
+  const rank = 1 + faster;
+  let best = 0; try{ best = parseFloat(localStorage.getItem('letterRaceBest')) || 0; }catch(_){}
+  if(t > 0.5 && (!best || t < best)){ best = t; try{ localStorage.setItem('letterRaceBest', best.toFixed(2)); }catch(_){} }
+  if(!best) best = t;
+  const place = rank===1 ? '🏆 You WON!' : rank===2 ? '🥈 2nd place!' : rank===3 ? '🥉 3rd place!' : '🏁 You finished!';
+  $('#rPrompt').innerHTML = `${place} &nbsp;⏱️ ${t.toFixed(1)}s <span style="opacity:.65;font-size:.8em">best ${best.toFixed(1)}s</span>`;
+  banner();
+  const rr = $('#rWrap').getBoundingClientRect(); stars(rr.left + rr.width/2, rr.top + rr.height/2);
+  $('#rNext').classList.remove('hidden');
+}
+
+/* drive the car (pointer = touch + mouse) */
+$('#rCar').innerHTML = carSVG('#e63946');
+(function(){
+  const wrap = $('#rWrap');
+  wrap.addEventListener('pointerdown', e=>{
+    if(R.locked || R.finished) return;
+    R.dragging = true; try{ wrap.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault(); moveCar(e);
+  });
+  wrap.addEventListener('pointermove', e=>{
+    if(R.locked || R.finished || !R.dragging) return;
+    e.preventDefault(); moveCar(e);
+  });
+  window.addEventListener('pointerup',     ()=>{ R.dragging = false; });
+  window.addEventListener('pointercancel', ()=>{ R.dragging = false; });
+})();
+$('#rListen').addEventListener('click', ()=> playLetterTriad(R.target));
+$('#rNext').addEventListener('click', raceRound);
 </script>
 </body>
 </html>
