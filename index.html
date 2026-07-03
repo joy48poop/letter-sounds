@@ -254,6 +254,19 @@
     width:40px; height:24px; transition:left .12s linear; }
   .lane-car svg{ width:100%; height:100%; display:block; }
   .lane-flag{ font-size:18px; }
+  /* traffic-light START countdown */
+  .countdown{ position:absolute; inset:0; z-index:30; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; pointer-events:none; }
+  .traffic{ background:#2b2f36; padding:14px 12px; border-radius:22px; display:flex;
+    flex-direction:column; gap:12px; box-shadow:0 10px 0 rgba(0,0,0,.28); }
+  .tl{ width:clamp(44px,12vw,60px); height:clamp(44px,12vw,60px); border-radius:50%;
+    background:#3a3f47; box-shadow:inset 0 0 0 3px rgba(0,0,0,.35); opacity:.3; transition:opacity .1s; }
+  .tl.red.on{ opacity:1; background:radial-gradient(circle at 40% 35%, #ff9a9a, #e63946); box-shadow:0 0 22px #ff5d5d; }
+  .tl.orange.on{ opacity:1; background:radial-gradient(circle at 40% 35%, #ffd88a, #ff9f1c); box-shadow:0 0 22px #ffb13f; }
+  .tl.green.on{ opacity:1; background:radial-gradient(circle at 40% 35%, #a7ec86, #2fbf60); box-shadow:0 0 26px #3ec96b; }
+  .go-text{ font-size:clamp(52px,14vw,130px); font-weight:900; color:#2fbf60;
+    text-shadow:0 6px 0 #1c8442, 0 12px 22px rgba(0,0,0,.3);
+    animation:popin .4s cubic-bezier(.34,1.56,.64,1); }
 
   /* ---------- celebration ---------- */
   .star{ position:fixed; font-size:26px; pointer-events:none; z-index:40; }
@@ -376,6 +389,14 @@
         <button class="listen" id="rListen"><span class="em">🔈</span> Hear it again</button>
         <button class="next-btn hidden" id="rNext">NEXT ▶</button>
       </div>
+    </div>
+    <div class="countdown hidden" id="rCountdown">
+      <div class="traffic">
+        <div class="tl red" id="tlRed"></div>
+        <div class="tl orange" id="tlOrange"></div>
+        <div class="tl green" id="tlGreen"></div>
+      </div>
+      <div class="go-text hidden" id="rGo">GO!</div>
     </div>
   </section>
 
@@ -1004,8 +1025,10 @@ function checkPair(){
    plays before the child traces and again when it's done.
    ============================================================ */
 const NS = 'http://www.w3.org/2000/svg';
-const T = { target:null, bag:[], food:[], total:0, next:0, locked:false, dragging:false, done:false,
-            strokeEls:[], activeStroke:0 };
+const T = { target:null, bag:[], food:[], total:0, next:0, eaten:0, locked:false, dragging:false, done:false,
+            strokeEls:[], activeStroke:0, flexible:false };
+// letters that may be traced either direction (any-order, no arrows)
+const FLEXIBLE = new Set(['o']);
 
 function nextTraceLetter(){ if(T.bag.length===0) T.bag = shuffle([...LETTER_KEYS]); return T.bag.pop(); }
 function startTrace(){ show('trace'); T.bag = []; traceRound(); }
@@ -1028,9 +1051,10 @@ function traceRound(){
   T.done = false; T.locked = true; T.dragging = false; T.next = 0;
   $('#tNext').classList.add('hidden');
   T.target = nextTraceLetter();
+  T.flexible = FLEXIBLE.has(T.target);    // 'o' can go either way
   const subs = subPaths(TRACE_PATHS[T.target] || TRACE_PATHS.o);
   buildStrokes(subs);
-  buildArrows(subs);
+  if(T.flexible) $('#tArrows').innerHTML = ''; else buildArrows(subs);
   buildFood(subs);
   setActiveStroke(0);                     // highlight the first stroke to trace
   $('#tPic').innerHTML = KEYWORD_ART[LETTERS[T.target].kw] || '';
@@ -1059,7 +1083,7 @@ function buildFood(subs){
       T.food.push({ el:cup, pos, eaten:false, stroke:k });
     });
   });
-  T.total = T.food.length; T.next = 0;
+  T.total = T.food.length; T.next = 0; T.eaten = 0;
 }
 
 // small arrows inside each stroke showing the tracing direction
@@ -1098,19 +1122,28 @@ function placeHeadAtStart(){
   const head = $('#tHead'); head.style.left = (p.x*scale)+'px'; head.style.top = (p.y*scale)+'px';
 }
 
-// tracing: only the NEXT cupcake in order can be eaten. When a stroke's cupcakes
-// are done, the highlight moves to the next stroke.
+function eatCupcake(f){
+  f.eaten = true; f.el.classList.add('eaten'); T.eaten++;
+  const head = $('#tHead'); head.classList.add('eat'); setTimeout(()=> head.classList.remove('eat'), 260);
+  if(T.eaten >= T.total) completeTrace();
+}
+function near(e, el){
+  const fr = el.getBoundingClientRect();
+  return fr.width && Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 34;
+}
+// Flexible letters ('o'): eat any nearby cupcake (trace either way). Others:
+// only the NEXT cupcake in order, and the highlight moves stroke by stroke.
 function moveHead(e){
   const r = $('#tWrap').getBoundingClientRect(); const head = $('#tHead');
   head.style.left = (e.clientX - r.left) + 'px';
   head.style.top  = (e.clientY - r.top)  + 'px';
-  if(T.next < T.food.length){
-    const f = T.food[T.next]; const fr = f.el.getBoundingClientRect();
-    if(fr.width && Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 34){
-      f.eaten = true; f.el.classList.add('eaten'); T.next++;
-      head.classList.add('eat'); setTimeout(()=> head.classList.remove('eat'), 260);
-      if(T.next >= T.food.length) completeTrace();
-      else if(T.food[T.next].stroke !== T.activeStroke) setActiveStroke(T.food[T.next].stroke);
+  if(T.flexible){
+    for(const f of T.food){ if(!f.eaten && near(e, f.el)) eatCupcake(f); }
+  } else if(T.next < T.food.length){
+    const f = T.food[T.next];
+    if(near(e, f.el)){
+      eatCupcake(f); T.next++;
+      if(!T.done && T.next < T.food.length && T.food[T.next].stroke !== T.activeStroke) setActiveStroke(T.food[T.next].stroke);
     }
   }
 }
@@ -1191,6 +1224,38 @@ function carSVG(color){
   </svg>`;
 }
 
+/* race start sounds (synthesised, so no extra audio files needed) */
+let ACX;
+function actx(){ try{ ACX = ACX || new (window.AudioContext||window.webkitAudioContext)();
+  if(ACX.state==='suspended') ACX.resume(); }catch(_){} return ACX; }
+function beep(freq, dur, type='square', vol=0.2){
+  if(muted) return; const ctx = actx(); if(!ctx) return;
+  try{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type; o.frequency.value=freq;
+    o.connect(g); g.connect(ctx.destination); const t=ctx.currentTime;
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+    o.start(t); o.stop(t+dur+0.02);
+  }catch(_){}
+}
+function startGun(){
+  if(muted) return; const ctx = actx(); if(!ctx) return;
+  try{ const n=Math.floor(ctx.sampleRate*0.2); const buf=ctx.createBuffer(1,n,ctx.sampleRate); const d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.5);
+    const s=ctx.createBufferSource(); s.buffer=buf; const g=ctx.createGain(); g.gain.value=0.55;
+    s.connect(g); g.connect(ctx.destination); s.start();
+  }catch(_){}
+}
+// RED · ORANGE · GREEN traffic-light countdown with beeps, then GO! + start gun
+function runCountdown(onGo){
+  const cd=$('#rCountdown'), red=$('#tlRed'), org=$('#tlOrange'), grn=$('#tlGreen'), go=$('#rGo');
+  [red,org,grn].forEach(l=> l.classList.remove('on')); go.classList.add('hidden');
+  cd.classList.remove('hidden');
+  setTimeout(()=>{ red.classList.add('on'); beep(520,0.18); }, 350);
+  setTimeout(()=>{ red.classList.remove('on'); org.classList.add('on'); beep(520,0.18); }, 1250);
+  setTimeout(()=>{ org.classList.remove('on'); grn.classList.add('on'); go.classList.remove('hidden');
+    startGun(); beep(1000,0.3,'square',0.25); onGo(); }, 2150);
+  setTimeout(()=>{ cd.classList.add('hidden'); }, 3200);
+}
+
 // sample points along a stroke, using a given SVG as the measuring surface
 function sampleAlong(svgSel, subD, spacing){
   const svg = $(svgSel); const tp = document.createElementNS(NS,'path');
@@ -1203,7 +1268,7 @@ function sampleAlong(svgSel, subD, spacing){
 }
 
 function nextRaceLetter(){ if(R.bag.length===0) R.bag = shuffle([...LETTER_KEYS]); return R.bag.pop(); }
-function startRace(){ show('race'); R.bag = []; buildLanes(); raceRound(); }
+function startRace(){ actx(); show('race'); R.bag = []; buildLanes(); raceRound(); }
 
 function buildLanes(){
   const box = $('#rLanes'); box.innerHTML = '';
@@ -1230,12 +1295,19 @@ function raceRound(){
   $('#rRoad').setAttribute('d', d); $('#rDash').setAttribute('d', d);
   buildRaceArrows(d); buildRaceDots(d);
   RACERS.forEach((_,i)=> setLane(i, 0));
-  // opponents get random (beatable) finish times, 8–15s
-  R.opps = RACERS.map((rc,i)=> rc.you ? null : { i, t: 8 + Math.random()*7 }).filter(Boolean);
+  // opponents get their OWN random finish times (7–15s), independent of the child
+  R.opps = RACERS.map((rc,i)=> rc.you ? null : { i, t: 7 + Math.random()*8 }).filter(Boolean);
   requestAnimationFrame(()=>{ placeRaceMarkers(); placeCarAtStart(); });
   $('#rPrompt').textContent = '👂 Listen…';
-  // listen first (frozen), then race
-  playLetterTriad(R.target, ()=>{ R.locked = false; $('#rPrompt').innerHTML = '🏁 Trace to the finish — GO fast!'; });
+  // listen first (frozen), then a traffic-light START, then everyone races at GO
+  playLetterTriad(R.target, ()=>{ $('#rPrompt').innerHTML = 'On your marks… 🚦'; runCountdown(startRaceAtGo); });
+}
+
+// GREEN light: the child AND all opponents start at the same instant
+function startRaceAtGo(){
+  R.locked = false; R.racing = true; R.finished = false; R.startTime = performance.now();
+  $('#rPrompt').innerHTML = '🏁 GO! Trace to the finish!';
+  cancelAnimationFrame(R.raf); R.raf = requestAnimationFrame(raceTick);
 }
 
 function buildRaceDots(d){
@@ -1288,7 +1360,6 @@ function moveCar(e){
   const r = $('#rWrap').getBoundingClientRect(); const car = $('#rCar');
   car.style.left = (e.clientX - r.left) + 'px';
   car.style.top  = (e.clientY - r.top)  + 'px';
-  if(!R.racing && !R.finished) startRaceClock();
   if(R.next < R.dots.length){
     const f = R.dots[R.next]; const fr = f.el.getBoundingClientRect();
     if(fr.width && Math.hypot(e.clientX-(fr.left+fr.width/2), e.clientY-(fr.top+fr.height/2)) < 30){
@@ -1298,11 +1369,6 @@ function moveCar(e){
   }
 }
 
-function startRaceClock(){
-  if(R.racing) return;
-  R.racing = true; R.startTime = performance.now();
-  cancelAnimationFrame(R.raf); R.raf = requestAnimationFrame(raceTick);
-}
 function raceTick(){
   if(!R.racing) return;
   if(!$('#race').classList.contains('active')){ R.racing = false; return; }
