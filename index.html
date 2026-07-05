@@ -59,8 +59,9 @@
     text-shadow:0 5px 0 #bfe3f6; text-align:center; line-height:1; }
   .logo small{ display:block; font-size:clamp(15px,3vw,24px); color:#5a8fb0;
     text-shadow:none; margin-top:10px; font-weight:700; }
-  .logo-capy{ display:block; width:clamp(110px,26vw,168px); margin:0 auto 12px; }
+  .logo-capy{ display:block; margin:0 auto 12px; }
   .logo-capy svg{ width:100%; height:auto; display:block; }
+  .logo-capy img{ height:clamp(120px,26vw,168px); width:auto; display:block; margin:0 auto; -webkit-user-drag:none; }
   .menu{ display:flex; flex-direction:column; gap:20px; width:min(440px,86vw); }
   .menu .big{ cursor:pointer; border:none; font-family:inherit; font-weight:900;
     color:#fff; border-radius:24px; padding:30px 22px; font-size:clamp(22px,5vw,34px);
@@ -152,16 +153,18 @@
   @keyframes cakepulse{ 0%,100%{ transform:translateY(0) scale(1);} 50%{ transform:translateY(-9px) scale(1.07);} }
 
   /* the capybara — face on the RIGHT, looking toward the cupcake */
-  .capy{ position:absolute; bottom:14px; left:14px; width:182px; z-index:3;
+  .capy{ position:absolute; bottom:16px; left:20px; width:auto; z-index:3;
     transform-origin:left bottom; pointer-events:none;
     transition:transform .6s cubic-bezier(.34,1.6,.5,1); }   /* springy growth */
-  .capy-inner{ transform-origin:center bottom; }
+  .capy-inner{ position:relative; transform-origin:center bottom; }
   .capy.eat .capy-inner{ animation:chomp .4s; }
   .capy.grow .capy-inner{ animation:growpop .65s ease; }      /* extra happy bounce */
   @keyframes growpop{ 0%{ transform:scale(1); } 35%{ transform:scale(1.25); }
     70%{ transform:scale(.95); } 100%{ transform:scale(1); } }
-  .capy-svg{ display:block; width:100%; height:auto; overflow:visible;
+  .pet-img{ display:block; height:100px; width:auto; -webkit-user-drag:none;
     animation:capbob 1.1s ease-in-out infinite; transform-origin:center bottom; }
+  .mouth-anchor{ position:absolute; left:50%; top:54%; width:12px; height:12px;
+    transform:translate(-50%,-50%); pointer-events:none; }
   .capy .leg{ transform-box:fill-box; transform-origin:center top; }
   .capy .leg1{ animation:legA .45s ease-in-out infinite; }
   .capy .leg2{ animation:legB .45s ease-in-out infinite; }
@@ -214,10 +217,11 @@
   .food-dot{ transition:transform .2s ease, opacity .2s ease;
     transform-box:fill-box; transform-origin:center; }
   .food-dot.eaten{ transform:scale(0); opacity:0; }
-  .capy-head{ position:absolute; left:50%; top:50%; width:64px; height:64px;
-    margin-left:-32px; margin-top:-32px; z-index:5; pointer-events:none;
+  .capy-head{ position:absolute; left:50%; top:50%; width:76px; height:64px;
+    margin-left:-38px; margin-top:-32px; z-index:5; pointer-events:none;
     will-change:left,top; filter:drop-shadow(0 3px 2px rgba(0,0,0,.25)); }
   .capy-head svg{ width:100%; height:100%; display:block; }
+  .capy-head img{ width:100%; height:100%; object-fit:contain; display:block; -webkit-user-drag:none; }
   .capy-head.eat{ animation:headchomp .25s; }
   @keyframes headchomp{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.22); } }
   /* the mouth opens while the capybara is eating a cupcake */
@@ -574,55 +578,16 @@ function say(text, done){
    Each correct answer: the caterpillar crawls to a cupcake,
    eats it, and grows one segment longer + a little bigger.
    ============================================================ */
-// The capybara is drawn in the RIGHT side of a wide viewBox, leaving the left
-// region free for a tail that grows leftward (see updateTail). The body sits in
-// a translated group; the tail path lives in the reserved left space.
+// the reward pet — the hand-drawn squirrel (with a hidden anchor over its mouth
+// so the cupcake knows where to be eaten)
 function capybaraSVG(){
-  return `<svg class="capy-svg" viewBox="0 0 252 124" xmlns="http://www.w3.org/2000/svg">
-    <path class="tail" d="" fill="none" stroke="#a9743f" stroke-width="11" stroke-linecap="round"/>
-    <g transform="translate(80,0)">
-      <rect class="leg leg1" x="46" y="96" width="18" height="20" rx="8" fill="#a9743f"/>
-      <rect class="leg leg2" x="104" y="96" width="18" height="20" rx="8" fill="#a9743f"/>
-      <ellipse cx="108" cy="48" rx="11" ry="13" fill="#9c6a3e"/>
-      <ellipse cx="132" cy="48" rx="11" ry="13" fill="#9c6a3e"/>
-      <ellipse cx="108" cy="49" rx="5" ry="6" fill="#7d5430"/>
-      <ellipse cx="132" cy="49" rx="5" ry="6" fill="#7d5430"/>
-      <rect x="12" y="46" width="140" height="60" rx="30" fill="#c08a55"/>
-      <ellipse cx="74" cy="92" rx="56" ry="14" fill="#cf9b66" opacity=".6"/>
-      <ellipse cx="138" cy="84" rx="22" ry="18" fill="#cf9b66"/>
-      <ellipse cx="120" cy="82" rx="7" ry="4.5" fill="#ff9bb0" opacity=".45"/>
-      <circle cx="118" cy="66" r="5.5" fill="#2b2b2b"/><circle cx="140" cy="66" r="5.5" fill="#2b2b2b"/>
-      <circle cx="120" cy="64" r="1.8" fill="#fff"/><circle cx="142" cy="64" r="1.8" fill="#fff"/>
-      <ellipse cx="143" cy="80" rx="2.2" ry="1.8" fill="#5a3b25"/>
-      <ellipse cx="151" cy="80" rx="2.2" ry="1.8" fill="#5a3b25"/>
-      <path class="m-closed" d="M140 90 q7 6 14 0" stroke="#5a3b25" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <ellipse class="m-open mouth-anchor" cx="148" cy="92" rx="7.5" ry="6.5" fill="#7a3b2a"/>
-      <ellipse class="m-open" cx="148" cy="95" rx="5" ry="3.5" fill="#ff7a8a"/>
-    </g>
-  </svg>`;
+  return `<img class="pet-img" src="assets/squirrel.png" alt="" draggable="false">
+    <span class="mouth-anchor"></span>`;
 }
 
-// just the capybara's head (used as the tracing "finger" that eats food)
+// just the squirrel's head (used as the tracing "finger" that eats food)
 function capyHeadSVG(){
-  return `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="26" cy="22" rx="10" ry="12" fill="#9c6a3e"/>
-    <ellipse cx="54" cy="22" rx="10" ry="12" fill="#9c6a3e"/>
-    <ellipse cx="26" cy="23" rx="4.5" ry="6" fill="#7d5430"/>
-    <ellipse cx="54" cy="23" rx="4.5" ry="6" fill="#7d5430"/>
-    <ellipse cx="40" cy="45" rx="31" ry="28" fill="#c08a55"/>
-    <ellipse cx="40" cy="57" rx="18" ry="14" fill="#cf9b66"/>
-    <ellipse cx="20" cy="52" rx="4.5" ry="3.2" fill="#ff9bb0" opacity=".5"/>
-    <ellipse cx="60" cy="52" rx="4.5" ry="3.2" fill="#ff9bb0" opacity=".5"/>
-    <circle cx="30" cy="40" r="4.6" fill="#2b2b2b"/>
-    <circle cx="50" cy="40" r="4.6" fill="#2b2b2b"/>
-    <circle cx="31.6" cy="38.4" r="1.5" fill="#fff"/>
-    <circle cx="51.6" cy="38.4" r="1.5" fill="#fff"/>
-    <ellipse cx="34" cy="54" rx="2" ry="1.6" fill="#5a3b25"/>
-    <ellipse cx="46" cy="54" rx="2" ry="1.6" fill="#5a3b25"/>
-    <path class="hd-mouth-closed" d="M34 61 q6 5 12 0" stroke="#5a3b25" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-    <ellipse class="hd-mouth-open" cx="40" cy="63" rx="8" ry="7" fill="#7a3b2a"/>
-    <ellipse class="hd-mouth-open" cx="40" cy="66" rx="4.5" ry="3.2" fill="#ff7a8a"/>
-  </svg>`;
+  return `<img class="head-img" src="assets/squirrel-head.png" alt="" draggable="false">`;
 }
 
 // a small yellow cupcake (the food the capybara eats while tracing)
@@ -670,10 +635,8 @@ const randomTreat = ()=> TREATS[Math.random()*TREATS.length|0];
 class Capybara{
   constructor(trackEl){
     this.track = trackEl;
-    this.scale = 1;       // overall size  (bigger)
-    this.stretch = 1;     // extra width    (a little longer)
+    this.scale = 1;       // overall size — grows as it eats
     this.fed = 0;         // cupcakes eaten
-    this.tailLen = 0;     // tail grows once the body reaches its gentle max
     this.active = false; this.dragging = false; this.eaten = false;
     this.pendingDone = null;
     this.build();
@@ -691,9 +654,7 @@ class Capybara{
     this.track.appendChild(belt);
     this.track.appendChild(this.capy);
     this.track.appendChild(this.cake);
-    this.tailEl = this.capy.querySelector('.tail');
     this.applyScale();
-    this.updateTail();
     this.reset();
     // slide-to-feed (pointer events cover both touch and mouse)
     this.cake.addEventListener('pointerdown', e=> this.onDown(e));
@@ -701,18 +662,7 @@ class Capybara{
     window.addEventListener('pointerup',     e=> this.onUp(e));
     window.addEventListener('pointercancel', e=> this.onUp(e));
   }
-  applyScale(){ this.capy.style.transform = `scale(${this.scale}) scaleX(${this.stretch})`; }
-  // draw a tail of the current length, trailing left from the body's back and
-  // curling up at the tip. Empty until the body has reached its max.
-  updateTail(){
-    if(!this.tailEl) return;
-    const L = this.tailLen;
-    if(L <= 2){ this.tailEl.setAttribute('d',''); return; }
-    const sx = 94, sy = 86;                       // root, just behind the body
-    const midx = sx - L*0.55, midy = sy + 16;     // dip toward the ground
-    const tipx = sx - L,      tipy = sy - 10;     // tip curls back up
-    this.tailEl.setAttribute('d', `M${sx} ${sy} Q ${midx} ${midy}, ${tipx} ${tipy}`);
-  }
+  applyScale(){ this.capy.style.transform = `scale(${this.scale})`; }
   // fresh cupcake resting on the right, nothing draggable yet
   reset(){
     this.active = false; this.dragging = false; this.eaten = false;
@@ -789,11 +739,8 @@ class Capybara{
     setTimeout(()=>{
       this.capy.classList.remove('eat');
       this.fed++;
-      this.scale   = Math.min(1.28, 1 + this.fed*0.07);    // body grows a little...
-      this.stretch = Math.min(1.16, 1 + this.fed*0.04);    // ...not too stretched
-      this.tailLen = Math.min(104, Math.max(0, this.fed - 4) * 16);  // then the TAIL grows!
+      this.scale = Math.min(1.45, 1 + this.fed*0.08);      // the squirrel grows as it eats
       this.applyScale();
-      this.updateTail();
       // make the growth obvious + exciting: a happy bounce + a sparkle burst
       this.capy.classList.add('grow');
       setTimeout(()=> this.capy.classList.remove('grow'), 700);
@@ -836,8 +783,7 @@ function show(id){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#'+id).classList.add('active');
 }
-$('#logoCapy').innerHTML = capybaraSVG();   // the same cute capybara on the title
-$('#logoCapy svg').setAttribute('viewBox','74 0 168 124');   // crop the empty tail space
+$('#logoCapy').innerHTML = '<img class="logo-img" src="assets/squirrel.png" alt="" draggable="false">';   // the squirrel on the title
 
 $$('[data-home]').forEach(b=> b.addEventListener('click', ()=> show('home')));
 $$('.menu .big').forEach(b=> b.addEventListener('click', ()=>{
