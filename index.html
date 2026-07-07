@@ -275,6 +275,64 @@
   /* ---------- celebration ---------- */
   .star{ position:fixed; font-size:26px; pointer-events:none; z-index:40; }
   @keyframes rise{ to{ transform:translateY(-120px) rotate(40deg); opacity:0; } }
+  /* whack-the-word style mallet */
+  .hammer{ position:fixed; width:64px; z-index:75; pointer-events:none; transform-origin:50% 92%; }
+  .hammer svg{ width:100%; height:auto; display:block; }
+  .hammer.swing svg{ animation:whackSwing .42s ease-out; transform-origin:50% 92%; }
+  @keyframes whackSwing{ 0%{ transform:rotate(-58deg) translateY(-6px); }
+    45%{ transform:rotate(14deg); } 70%{ transform:rotate(2deg); } 100%{ transform:rotate(-58deg); } }
+  /* Sight Words: reward is the fountain game now, so no cupcake to feed here */
+  #wTrack .cake{ display:none; }
+
+  /* ---------- Fountain reward game ---------- */
+  #fountain{ justify-content:flex-start; }
+  .fnt-stage{ position:relative; flex:1; width:100%; overflow:hidden;
+    background:linear-gradient(#bfe6ff 0%, #d9f2ff 55%, #eafaff 100%); }
+  .fnt-ground{ position:absolute; left:0; right:0; bottom:0; height:9%;
+    background:linear-gradient(#8ad06a 0 40%, #6bb84e 100%); }
+  .fnt-base{ position:absolute; left:50%; bottom:5%; width:clamp(120px,34vw,190px);
+    transform:translateX(-50%); z-index:2; }
+  .fnt-base svg{ width:100%; height:auto; display:block; }
+  .fnt-water{ position:absolute; left:50%; bottom:12%; width:clamp(20px,5vw,30px);
+    transform:translateX(-50%); z-index:1; border-radius:12px 12px 0 0;
+    background:linear-gradient(#eafaff, #9fdcff 40%, #6bc6f5);
+    box-shadow:0 0 10px rgba(120,200,255,.6); height:6%;
+    animation:waterwob .5s ease-in-out infinite alternate; }
+  @keyframes waterwob{ from{ width:clamp(18px,4.6vw,28px);} to{ width:clamp(22px,5.4vw,32px);} }
+  .fnt-float{ position:absolute; left:50%; bottom:22%; transform:translateX(-50%);
+    width:clamp(120px,32vw,180px); z-index:3; }
+  .fnt-ring{ width:100%; }
+  .fnt-ring svg{ width:100%; height:auto; display:block; }
+  .fnt-squirrel{ position:absolute; left:50%; bottom:34%; transform:translateX(-50%);
+    width:clamp(64px,17vw,96px); z-index:4; -webkit-user-drag:none;
+    animation:sqbob .9s ease-in-out infinite; }
+  @keyframes sqbob{ 0%,100%{ transform:translateX(-50%) translateY(0) rotate(-1.5deg);}
+    50%{ transform:translateX(-50%) translateY(-4px) rotate(1.5deg);} }
+  .fnt-squirrel.hop{ animation:sqhop .6s ease-out; }
+  @keyframes sqhop{ 0%{ transform:translateX(-50%) translateY(0);}
+    45%{ transform:translateX(-50%) translateY(-40px) scale(1.05);} 100%{ transform:translateX(-50%) translateY(-14px);} }
+  .balloon{ position:absolute; left:50%; bottom:60%; transform:translateX(-50%);
+    width:clamp(96px,26vw,150px); z-index:3; animation:balfloat 2.6s ease-in-out infinite; }
+  .balloon svg{ width:100%; height:auto; display:block; }
+  @keyframes balfloat{ 0%,100%{ transform:translateX(-50%) translateY(0);} 50%{ transform:translateX(-50%) translateY(-10px);} }
+  .balloon.liftoff, .fnt-float.liftoff{ transition:transform 1.9s ease-in, opacity 1.9s ease-in;
+    transform:translateX(-50%) translateY(-190%); opacity:0; }
+  .jump-btn{ position:absolute; left:50%; bottom:44%; transform:translateX(-50%);
+    z-index:6; cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#fff;
+    background:linear-gradient(#ffce4d,#f0a91f); box-shadow:0 6px 0 #c47f0c;
+    border-radius:16px; padding:14px 28px; font-size:clamp(20px,4vw,30px);
+    animation:jumppulse .6s ease-in-out infinite; }
+  .jump-btn:active{ transform:translateX(-50%) translateY(4px); box-shadow:0 2px 0 #c47f0c; }
+  @keyframes jumppulse{ 0%,100%{ transform:translateX(-50%) scale(1);} 50%{ transform:translateX(-50%) scale(1.08);} }
+  .fnt-prompt{ font-weight:900; color:#2f6f9e; text-align:center; padding:10px 14px;
+    font-size:clamp(16px,3vw,24px); text-shadow:0 2px 0 rgba(255,255,255,.6); }
+  .smash-btn{ display:block; margin:0 auto 18px; cursor:pointer; border:none; font-family:inherit;
+    font-weight:900; color:#fff; background:linear-gradient(#ff7a6b,#e74c3c);
+    box-shadow:0 8px 0 #b93225; border-radius:22px; padding:20px 54px;
+    font-size:clamp(24px,5vw,38px); touch-action:manipulation; }
+  .smash-btn.press{ animation:smashpress .12s ease; }
+  @keyframes smashpress{ 0%,100%{ transform:translateY(0); box-shadow:0 8px 0 #b93225;}
+    50%{ transform:translateY(6px); box-shadow:0 2px 0 #b93225;} }
   .banner{ position:fixed; inset:0; display:none; align-items:center;
     justify-content:center; z-index:60; pointer-events:none; }
   .banner.show{ display:flex; }
@@ -402,6 +460,25 @@
       </div>
       <div class="go-text hidden" id="rGo">GO!</div>
     </div>
+  </section>
+
+  <!-- =================== FOUNTAIN REWARD GAME =================== -->
+  <section id="fountain" class="screen">
+    <div class="fnt-stage" id="fntStage">
+      <div class="cloud" style="top:10%; left:8%;"></div>
+      <div class="cloud" style="top:20%; right:12%; transform:scale(.7)"></div>
+      <div class="balloon" id="fntBalloon"></div>
+      <div class="fnt-water" id="fntWater"></div>
+      <div class="fnt-float" id="fntFloat">
+        <img class="fnt-squirrel" id="fntSquirrel" src="assets/squirrel.png" alt="" draggable="false">
+        <div class="fnt-ring" id="fntRing"></div>
+      </div>
+      <div class="fnt-base" id="fntBase"></div>
+      <div class="fnt-ground"></div>
+      <button class="jump-btn hidden" id="fntJump">JUMP! ⬆</button>
+    </div>
+    <div class="fnt-prompt" id="fntPrompt">Smash the button to pump the water! 💥</div>
+    <button class="smash-btn" id="fntSmash">SMASH! 🔨</button>
   </section>
 
   <!-- celebration banner -->
@@ -891,6 +968,25 @@ function stars(x,y){
     setTimeout(()=>s.remove(), 1500);
   }
 }
+// a cartoon mallet that swings down to "whack" — used on word taps and the smash button
+function hammerSVG(){
+  return `<svg viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+    <rect x="44" y="40" width="12" height="64" rx="5" fill="#9a6a35"/>
+    <rect x="44" y="40" width="12" height="64" rx="5" fill="none" stroke="#7c5125" stroke-width="2"/>
+    <rect x="22" y="12" width="56" height="34" rx="8" fill="#e74c3c" stroke="#b93225" stroke-width="3"/>
+    <rect x="26" y="16" width="48" height="9" rx="4" fill="#ff7a6b"/>
+  </svg>`;
+}
+function whack(cx, cy){
+  const h = document.createElement('div');
+  h.className = 'hammer';
+  h.innerHTML = hammerSVG();
+  h.style.left = (cx - 6) + 'px';       // pivot (handle) near the tap point
+  h.style.top  = (cy - 96) + 'px';
+  document.body.appendChild(h);
+  requestAnimationFrame(()=> h.classList.add('swing'));
+  setTimeout(()=> h.remove(), 460);
+}
 
 /* ============================================================
    SCREEN ROUTING
@@ -999,7 +1095,7 @@ function pickLetter(letter, el){
    GAME 2 — SIGHT WORDS  (whack-a-mole matching, calmed down)
    Two signs show the SAME word — tap them both.
    ============================================================ */
-const W = { board:[], target:"", selected:[], locked:false, bag:[], cat:null };
+const W = { board:[], target:"", selected:[], locked:false, bag:[], cat:null, matches:0 };
 
 function startWords(){
   show('words');
@@ -1045,6 +1141,9 @@ function pickSign(i){
   const el = els[i];
   if(!el.classList.contains('up')) return;
 
+  const r = el.getBoundingClientRect();
+  whack(r.left + r.width/2, r.top + r.height*0.45);   // 🔨 hammer hits the sign
+
   const at = W.selected.indexOf(i);
   if(at>=0){ W.selected.splice(at,1); el.classList.remove('sel'); return; }  // tap again to unselect
   if(W.selected.length>=2) return;
@@ -1063,10 +1162,12 @@ function checkPair(){
     const r = els[a].getBoundingClientRect();
     stars(r.left + r.width/2, r.top + r.height/2);
     banner();
-    // computer reads the matched word, then the child feeds the caterpillar
-    $('#wPrompt').innerHTML = `🔊 <b>“${word}”</b> — 🧁 slide the cupcake to the capybara!`;
+    $('#wPrompt').innerHTML = `🔊 <b>“${word}”</b>`;
     say(word);
-    W.cat.feed(()=> wordRound());
+    W.matches++;
+    // every 2 correct matches, play the fountain reward game; otherwise next round
+    if(W.matches % 2 === 0) setTimeout(()=> startFountain(()=>{ show('words'); wordRound(); }), 900);
+    else                    setTimeout(()=> wordRound(), 1000);
   } else {
     els[a].classList.add('bad'); els[b].classList.add('bad');
     $('#wPrompt').textContent = 'Not the same — try again!';
@@ -1077,6 +1178,105 @@ function checkPair(){
     }, 700);
   }
 }
+
+/* ============================================================
+   FOUNTAIN REWARD GAME (Sight Words)
+   Smash the button with the hammer to pump the fountain; the water
+   lifts the squirrel's float up to the hot-air balloon, then JUMP in.
+   ============================================================ */
+const F = { water:0, height:0, base:12, taps:0, raf:0, onDone:null, reached:false, jumping:false, active:false };
+
+function balloonSVG(){
+  return `<svg viewBox="0 0 120 175" xmlns="http://www.w3.org/2000/svg">
+    <path d="M60 8 C24 8 10 44 10 74 C10 106 40 124 54 134 L66 134 C80 124 110 106 110 74 C110 44 96 8 60 8Z" fill="#ff6b6b"/>
+    <path d="M60 8 C48 8 44 44 44 78 C44 108 50 126 57 134 L63 134 C70 126 76 108 76 78 C76 44 72 8 60 8Z" fill="#ffd24d"/>
+    <path d="M44 12 C40 42 40 108 54 134 C42 118 25 96 23 66 C21 40 32 20 44 12Z" fill="#5a87ec"/>
+    <path d="M76 12 C80 42 80 108 66 134 C78 118 95 96 97 66 C99 40 88 20 76 12Z" fill="#3ec96b"/>
+    <path d="M46 132 L52 154 M74 132 L68 154" stroke="#8a6a3a" stroke-width="2.5"/>
+    <rect x="48" y="152" width="24" height="17" rx="3" fill="#a9743f"/>
+    <rect x="48" y="152" width="24" height="6" fill="#c8894a"/></svg>`;
+}
+function floatSVG(){
+  return `<svg viewBox="0 0 140 56" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="70" cy="36" rx="66" ry="18" fill="#e0473c"/>
+    <ellipse cx="70" cy="30" rx="66" ry="18" fill="#ff6b6b"/>
+    <ellipse cx="70" cy="28" rx="32" ry="8" fill="#bfe6ff"/>
+    <rect x="34" y="14" width="16" height="12" rx="2" fill="#fff"/>
+    <rect x="90" y="14" width="16" height="12" rx="2" fill="#fff"/>
+    <rect x="62" y="10" width="16" height="10" rx="2" fill="#fff"/></svg>`;
+}
+function fountainBaseSVG(){
+  return `<svg viewBox="0 0 160 66" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="80" cy="52" rx="76" ry="13" fill="#8b98a4"/>
+    <ellipse cx="80" cy="47" rx="76" ry="13" fill="#aeb8c2"/>
+    <ellipse cx="80" cy="45" rx="60" ry="9" fill="#7fc4ec"/>
+    <rect x="70" y="16" width="20" height="30" rx="5" fill="#9aa7b3"/>
+    <ellipse cx="80" cy="16" rx="14" ry="4" fill="#7f8a96"/></svg>`;
+}
+
+function startFountain(onDone){
+  F.onDone = onDone; F.water = F.base; F.height = F.base; F.taps = 0;
+  F.reached = false; F.jumping = false; F.active = true;
+  $('#fntBalloon').classList.remove('liftoff'); $('#fntFloat').classList.remove('liftoff');
+  $('#fntSquirrel').classList.remove('hop');
+  $('#fntJump').classList.add('hidden');
+  $('#fntPrompt').textContent = 'Smash the button to pump the water! 💥';
+  show('fountain');
+  renderFountain();
+  cancelAnimationFrame(F.raf); F.raf = requestAnimationFrame(fountainTick);
+}
+function fountainTick(){
+  if(!F.active) return;
+  if(!F.jumping){
+    F.water = Math.max(F.base, F.water - 0.42);          // weak fountain — water drains back
+    F.height += (F.water - F.height) * 0.11;             // float eases toward the water level
+    if(!F.reached && F.height >= 88){ F.reached = true; onReachBalloon(); }
+  }
+  renderFountain();
+  F.raf = requestAnimationFrame(fountainTick);
+}
+function renderFountain(){
+  const GROUND = 18, TOP = 58;
+  const h = Math.max(0, Math.min(102, F.height));
+  const bottomPct = GROUND + (h/100)*(TOP-GROUND);
+  $('#fntFloat').style.bottom = bottomPct + '%';
+  $('#fntWater').style.height = Math.max(4, bottomPct - 12) + '%';
+}
+function smashFountain(){
+  if(!F.active || F.jumping) return;
+  F.taps++;
+  F.water = Math.min(112, F.water + 9);
+  if(F.taps % 10 === 0) F.water = Math.min(122, F.water + 18);   // every 10 hits = a big bounce
+  const b = $('#fntSmash'), r = b.getBoundingClientRect();
+  whack(r.left + r.width/2, r.top + 6);
+  b.classList.remove('press'); void b.offsetWidth; b.classList.add('press');
+}
+function onReachBalloon(){
+  $('#fntJump').classList.remove('hidden');
+  $('#fntPrompt').textContent = 'You reached the balloon! Press JUMP! 🎈';
+}
+function jumpToBalloon(){
+  if(!F.active || F.jumping) return;
+  F.jumping = true; F.water = 122;                       // float rises the last bit
+  $('#fntJump').classList.add('hidden');
+  $('#fntPrompt').textContent = '🎉 Wheee! Off in the balloon!';
+  $('#fntSquirrel').classList.add('hop');
+  banner();
+  setTimeout(()=>{ $('#fntBalloon').classList.add('liftoff'); $('#fntFloat').classList.add('liftoff'); }, 750);
+  setTimeout(endFountain, 2600);
+}
+function endFountain(){
+  F.active = false; cancelAnimationFrame(F.raf);
+  const done = F.onDone; F.onDone = null;
+  if(done) done();
+}
+
+/* populate + wire the fountain */
+$('#fntBalloon').innerHTML = balloonSVG();
+$('#fntRing').innerHTML = floatSVG();
+$('#fntBase').innerHTML = fountainBaseSVG();
+$('#fntSmash').addEventListener('pointerdown', e=>{ e.preventDefault(); smashFountain(); });
+$('#fntJump').addEventListener('click', jumpToBalloon);
 
 /* ============================================================
    GAME 3 — TRACE THE LETTER
