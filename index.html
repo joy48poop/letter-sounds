@@ -880,7 +880,12 @@ class Capybara{
     this.cake.innerHTML = randomTreat();           // a fresh, randomly-coloured treat
     this.cake.style.transition = 'transform .25s';
     const w = this.track.clientWidth || 360;
-    this.homeX = Math.max(170, w - 84);
+    // rest the cupcake a short hop to the right of the squirrel's mouth (short path)
+    let base = 170;
+    const tr = this.track.getBoundingClientRect();
+    const m = this.capy.querySelector('.mouth-anchor');
+    if(m && tr.width){ const mr = m.getBoundingClientRect(); if(mr.width) base = (mr.left - tr.left) + 100; }
+    this.homeX = Math.min(w - 70, Math.max(150, base));
     this.cake.style.left = this.homeX + 'px';
     this.cake.style.bottom = '30px';
   }
