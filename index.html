@@ -517,7 +517,18 @@ const LETTERS = {
   g:{ kw:"goat",     kwFile:"go.m4a",       file:"g.m4a" },
 };
 const LETTER_KEYS = Object.keys(LETTERS);
-const SIGHT_WORDS = ["the","to","and","is"];
+const SIGHT_WORDS = [
+  "the","or","will","number","of","one","up","and","had","other",
+  "a","by","about","to","words","out","in","but","many","is",
+  "not","then","you","what","them","that","all","these","it","were",
+  "so","he","we","some","was","when","her","for","your","would",
+  "on","can","make","are","said","like","as","there","him","with",
+  "use","into","his","an","time","they","each","has","I","which",
+  "look","at","she","two","be","do","more","this","how","write",
+  "have","their","go","from","if","see","no","way","could","people",
+  "my","than","first","water","been","called","who","am","its","now",
+  "find","long","down","day","did","get","come","made","may","part",
+];
 
 /* Letter Sounds: all 26 letters. Each plays one recording that already contains
    sound -> keyword -> "find sound" (audio/soundletter/<key>.m4a). */
@@ -1175,7 +1186,7 @@ function checkPair(){
     stars(r.left + r.width/2, r.top + r.height/2);
     banner();
     $('#wPrompt').innerHTML = `🔊 <b>“${word}”</b>`;
-    say(word);
+    playSequence([{ audio:`audio/fry/${word}.m4a` }]);   // your recorded word
     W.matches++;
     // every 2 correct matches, play the fountain reward game; otherwise next round
     if(W.matches % 2 === 0) setTimeout(()=> startFountain(()=>{ show('words'); wordRound(); }), 900);
