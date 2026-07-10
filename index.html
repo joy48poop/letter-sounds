@@ -511,10 +511,10 @@ const LETTERS = {
   o:{ kw:"octopus",  kwFile:"octopus.m4a",  file:"o.m4a" },
   u:{ kw:"up",       kwFile:"up.m4a",       file:"u.m4a" },
   b:{ kw:"ball",     kwFile:"ball.m4a",     file:"b.m4a" },
-  c:{ kw:"cake",     kwFile:"cake.m4a",     file:"c.m4a" },
+  c:{ kw:"cat",      kwFile:"cake.m4a",     file:"c.m4a" },
   d:{ kw:"dog",      kwFile:"dog.m4a",      file:"d.m4a" },
   f:{ kw:"fish",     kwFile:"fish.m4a",     file:"f.m4a" },
-  g:{ kw:"go",       kwFile:"go.m4a",       file:"g.m4a" },
+  g:{ kw:"goat",     kwFile:"go.m4a",       file:"g.m4a" },
 };
 const LETTER_KEYS = Object.keys(LETTERS);
 const SIGHT_WORDS = ["the","to","and","is"];
@@ -1514,14 +1514,9 @@ function playTraceIntro(){
   });
 }
 
-// sound · keyword · sound  (e.g. /c/ cake /c/)
+// one recording per letter: sound · keyword · sound  (e.g. /c/ cat /c/)
 function playLetterTriad(letter, done){
-  const d = LETTERS[letter];
-  playSequence([
-    { audio:`audio/letters/${d.file}` },
-    { audio:`audio/keywords/${d.kwFile}` },
-    { audio:`audio/letters/${d.file}` },
-  ], done);
+  playSequence([ { audio:`audio/trace/${letter}.m4a` } ], done);
 }
 
 /* drag the capybara head (pointer = touch + mouse) */
