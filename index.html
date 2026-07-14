@@ -236,6 +236,28 @@
   @keyframes bubblepulse{ 0%,100%{ transform:scale(1); }
     50%{ transform:scale(1.06); box-shadow:0 8px 0 #f0d394, 0 0 0 7px rgba(255,205,70,.55); } }
   .trace-controls{ display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  /* "Pick a letter" button + picker popup */
+  .pick-btn{ cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#fff;
+    background:linear-gradient(#b98cf0,#9a5fe0); box-shadow:0 6px 0 #7a44c0;
+    border-radius:18px; padding:12px 26px; font-size:clamp(16px,3vw,22px); }
+  .pick-btn:active{ transform:translateY(3px); box-shadow:0 3px 0 #7a44c0; }
+  .picker{ position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center;
+    background:rgba(20,40,60,.45); padding:18px; }
+  .picker.hidden{ display:none; }
+  .picker-panel{ position:relative; background:#fff; border-radius:26px; padding:26px 20px 22px;
+    width:min(560px,94vw); max-height:88vh; overflow-y:auto;
+    box-shadow:0 16px 44px rgba(0,0,0,.32); animation:pickerpop .28s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes pickerpop{ from{ transform:scale(.5); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .picker-title{ font-weight:900; color:#2f6f9e; font-size:clamp(20px,4.4vw,28px);
+    text-align:center; margin-bottom:16px; }
+  .picker-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(58px,1fr)); gap:10px; }
+  .picker-letter{ cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#3a4a5a;
+    background:#eef4f9; border-radius:14px; padding:10px 4px 14px; aspect-ratio:1/1; overflow:hidden;
+    font-size:clamp(28px,6vw,42px); box-shadow:0 4px 0 #cdd9e3; transition:transform .06s; }
+  .picker-letter:active{ transform:translateY(3px); box-shadow:0 1px 0 #cdd9e3; }
+  .picker-close{ position:absolute; top:12px; right:14px; cursor:pointer; border:none;
+    background:#eef4f9; color:#3a4a5a; width:42px; height:42px; border-radius:12px;
+    font-size:20px; font-weight:900; box-shadow:0 3px 0 #cdd9e3; }
   .next-btn{ cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#fff;
     background:linear-gradient(#6cc6ff,#3f9fe0); box-shadow:0 7px 0 #2f78ad;
     border-radius:20px; padding:16px 42px; font-size:clamp(20px,3.6vw,28px); }
@@ -392,6 +414,7 @@
         <div class="bubble"><div class="bubble-pic" id="lPic"></div></div>
         <div class="cards" id="lCards"></div>
       </div>
+      <button class="pick-btn" id="lPick">🔤 Pick a letter</button>
     </div>
     <div class="track" id="lTrack"></div>
   </section>
@@ -432,6 +455,7 @@
       </div>
       <div class="trace-controls">
         <button class="listen" id="tListen"><span class="em">🔈</span> Hear it again</button>
+        <button class="pick-btn" id="tPick">🔤 Pick a letter</button>
         <button class="next-btn hidden" id="tNext">NEXT ▶</button>
       </div>
     </div>
@@ -495,6 +519,15 @@
     <div class="fnt-prompt" id="fntPrompt">Smash the button to pump the water! 💥</div>
     <button class="smash-btn" id="fntSmash">SMASH! 🔨</button>
   </section>
+
+  <!-- letter picker popup -->
+  <div class="picker hidden" id="picker">
+    <div class="picker-panel">
+      <button class="picker-close" id="pickerClose">✕</button>
+      <div class="picker-title">Pick a letter</div>
+      <div class="picker-grid" id="pickerGrid"></div>
+    </div>
+  </div>
 
   <!-- celebration banner -->
   <div class="banner" id="banner"><div class="pop" id="bannerText">YES!</div></div>
@@ -1057,9 +1090,9 @@ function nextLetter(){
   return L.bag.pop();
 }
 
-function letterRound(){
+function letterRound(forced){
   L.locked = true;               // frozen until the prompt finishes
-  L.target = nextLetter();
+  L.target = (typeof forced === 'string') ? forced : nextLetter();
   const distractor = shuffle(SOUND_KEYS.filter(k=>k!==L.target))[0];
   const choices = shuffle([L.target, distractor]);
 
@@ -1403,10 +1436,10 @@ function samplePoints(subD, spacing){
   return pts;
 }
 
-function traceRound(){
+function traceRound(forced){
   T.done = false; T.locked = true; T.dragging = false; T.next = 0;
   $('#tNext').classList.add('hidden');
-  T.target = nextTraceLetter();
+  T.target = (typeof forced === 'string') ? forced : nextTraceLetter();
   T.flexible = FLEXIBLE.has(T.target);    // 'o' can go either way
   const subs = subPaths(TRACE_PATHS[T.target] || TRACE_PATHS.o);
   buildStrokes(subs);
@@ -1547,7 +1580,25 @@ $('#tHead').innerHTML = capyHeadSVG();
   window.addEventListener('pointercancel', ()=>{ T.dragging = false; });
 })();
 $('#tListen').addEventListener('click', playTraceIntro);
-$('#tNext').addEventListener('click', traceRound);
+$('#tNext').addEventListener('click', ()=> traceRound());
+
+/* ---------- letter picker popup (Letter Sounds + Trace) ---------- */
+function openPicker(letters, onPick){
+  const grid = $('#pickerGrid'); grid.innerHTML = '';
+  letters.forEach(letter=>{
+    const b = document.createElement('button');
+    b.className = 'picker-letter'; b.textContent = letter;
+    if(letter.length > 1) b.style.fontSize = 'clamp(20px,5vw,30px)';
+    b.addEventListener('click', ()=>{ closePicker(); onPick(letter); });
+    grid.appendChild(b);
+  });
+  $('#picker').classList.remove('hidden');
+}
+function closePicker(){ stopAudio(); $('#picker').classList.add('hidden'); }
+$('#pickerClose').addEventListener('click', closePicker);
+$('#picker').addEventListener('click', e=>{ if(e.target.id === 'picker') closePicker(); });
+$('#lPick').addEventListener('click', ()=> openPicker(SOUND_KEYS, letter=> letterRound(letter)));
+$('#tPick').addEventListener('click', ()=> openPicker(Object.keys(TRACE_PATHS), letter=> traceRound(letter)));
 
 /* ============================================================
    GAME 4 — LETTER RACE
