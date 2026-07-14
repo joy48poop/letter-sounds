@@ -772,6 +772,22 @@ const TRACE_PATHS = {
   i:"M110 122 L110 232 M110 80 L110 82",
   o:"M110 112 Q 50 112 50 171 Q 50 230 110 230 Q 170 230 170 171 Q 170 112 110 112",
   u:"M56 112 L56 196 Q 56 230 108 230 Q 160 230 160 196 L160 112",
+  h:"M70 62 L70 232 M70 152 Q 110 124 150 158 L150 232",
+  j:"M116 124 L116 250 Q 116 285 82 279 Q 62 276 54 260 M116 80 L116 82",
+  k:"M70 62 L70 232 M152 124 L78 194 L152 232",
+  l:"M110 62 L110 232",
+  m:"M56 124 L56 232 M56 152 Q 58 124 90 124 Q 116 124 116 156 L116 232 M116 152 Q 118 124 146 124 Q 170 124 170 156 L170 232",
+  n:"M64 124 L64 232 M64 152 Q 68 124 108 124 Q 150 124 150 158 L150 232",
+  p:"M64 124 L64 284 M64 150 Q 160 146 160 189 Q 160 232 64 226",
+  qu:"M156 124 L156 284 M156 150 Q 52 146 52 189 Q 52 232 156 226",
+  r:"M70 124 L70 232 M70 154 Q 92 124 136 138",
+  s:"M156 138 Q 148 110 108 110 Q 66 110 66 146 Q 66 172 110 172 Q 156 172 156 205 Q 156 234 106 234 Q 64 234 54 206",
+  t:"M110 82 L110 210 Q 110 234 144 226 M74 126 L148 126",
+  v:"M60 124 L110 232 L162 124",
+  w:"M48 124 L82 232 L110 150 L138 232 L172 124",
+  x:"M62 124 L158 232 M158 124 L62 232",
+  y:"M62 124 L112 210 M158 124 L86 284",
+  z:"M60 124 L160 124 L60 232 L160 232",
 };
 
 /* ============================================================
@@ -1419,7 +1435,8 @@ const T = { target:null, bag:[], food:[], total:0, next:0, eaten:0, locked:false
 // letters that may be traced either direction (any-order, no arrows)
 const FLEXIBLE = new Set(['o']);
 
-function nextTraceLetter(){ if(T.bag.length===0) T.bag = shuffle([...LETTER_KEYS]); return T.bag.pop(); }
+const TRACE_KEYS = Object.keys(TRACE_PATHS);   // now the whole alphabet
+function nextTraceLetter(){ if(T.bag.length===0) T.bag = shuffle([...TRACE_KEYS]); return T.bag.pop(); }
 function startTrace(){ show('trace'); T.bag = []; traceRound(); }
 
 // split a path's "d" into its separate strokes (each starts with M)
@@ -1446,7 +1463,7 @@ function traceRound(forced){
   if(T.flexible) $('#tArrows').innerHTML = ''; else buildArrows(subs);
   buildFood(subs);
   setActiveStroke(0);                     // highlight the first stroke to trace
-  $('#tPic').innerHTML = KEYWORD_ART[LETTERS[T.target].kw] || '';
+  $('#tPic').innerHTML = KEYWORD_ART[SOUNDLETTERS[T.target]] || '';
   requestAnimationFrame(placeHeadAtStart);
   playTraceIntro();
 }
