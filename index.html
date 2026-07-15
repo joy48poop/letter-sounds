@@ -99,9 +99,10 @@
   .lcard{ cursor:pointer; width:clamp(106px,25vw,168px); aspect-ratio:1/1;
     background:var(--card); border-radius:28px; border:6px solid #e3ecf3;
     box-shadow:0 9px 0 #cdd9e3; display:flex; align-items:center;
-    justify-content:center; font-weight:900; color:#3a4a5a; overflow:hidden;
-    font-size:clamp(62px,16vw,116px); padding-bottom:.2em;   /* room for descenders (j, g, p, y) */
+    justify-content:center; overflow:hidden; padding:14px;
     transition:transform .07s, box-shadow .07s, opacity .2s; }
+  .lcard img{ max-width:100%; max-height:100%; object-fit:contain;
+    pointer-events:none; user-select:none; -webkit-user-drag:none; }
   .lcard:active{ transform:translateY(4px); box-shadow:0 4px 0 #cdd9e3; }
   /* while the prompt is playing, the letters are frozen (can't be tapped yet) */
   .cards.listening .lcard{ opacity:.4; pointer-events:none; }
@@ -251,9 +252,12 @@
   .picker-title{ font-weight:900; color:#2f6f9e; font-size:clamp(20px,4.4vw,28px);
     text-align:center; margin-bottom:16px; }
   .picker-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(58px,1fr)); gap:10px; }
-  .picker-letter{ cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#3a4a5a;
-    background:#eef4f9; border-radius:14px; padding:10px 4px 14px; aspect-ratio:1/1; overflow:hidden;
-    font-size:clamp(28px,6vw,42px); box-shadow:0 4px 0 #cdd9e3; transition:transform .06s; }
+  .picker-letter{ cursor:pointer; border:none;
+    background:#eef4f9; border-radius:14px; padding:8px; aspect-ratio:1/1; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 #cdd9e3; transition:transform .06s; }
+  .picker-letter img{ max-width:100%; max-height:100%; object-fit:contain;
+    pointer-events:none; user-select:none; -webkit-user-drag:none; }
   .picker-letter:active{ transform:translateY(3px); box-shadow:0 1px 0 #cdd9e3; }
   .picker-close{ position:absolute; top:12px; right:14px; cursor:pointer; border:none;
     background:#eef4f9; color:#3a4a5a; width:42px; height:42px; border-radius:12px;
@@ -572,6 +576,15 @@ const SOUNDLETTERS = {
   v:"van", w:"win", x:"box", y:"yes", z:"buzz",
 };
 const SOUND_KEYS = Object.keys(SOUNDLETTERS);
+
+/* the letters are hand-written scans, not a font */
+function letterImg(letter){
+  const im = document.createElement('img');
+  im.src = `assets/letters/${letter}.png`;
+  im.alt = letter;
+  im.draggable = false;
+  return im;
+}
 
 /* coloured illustrations for each keyword (shown in the speech bubble) */
 const KEYWORD_ART = {
@@ -1119,8 +1132,7 @@ function letterRound(forced){
   choices.forEach(letter=>{
     const c = document.createElement('div');
     c.className = 'lcard';
-    c.textContent = letter;
-    if(letter.length > 1) c.style.fontSize = 'clamp(46px,12vw,88px)';   // "qu" fits
+    c.appendChild(letterImg(letter));
     c.addEventListener('click', ()=> pickLetter(letter, c));
     cards.appendChild(c);
   });
@@ -1604,8 +1616,8 @@ function openPicker(letters, onPick){
   const grid = $('#pickerGrid'); grid.innerHTML = '';
   letters.forEach(letter=>{
     const b = document.createElement('button');
-    b.className = 'picker-letter'; b.textContent = letter;
-    if(letter.length > 1) b.style.fontSize = 'clamp(20px,5vw,30px)';
+    b.className = 'picker-letter';
+    b.appendChild(letterImg(letter));
     b.addEventListener('click', ()=>{ closePicker(); onPick(letter); });
     grid.appendChild(b);
   });
