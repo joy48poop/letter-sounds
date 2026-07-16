@@ -280,6 +280,9 @@
 
   /* ---------- Letter Race ---------- */
   .trace-wrap.race{ width:min(300px,78vw,38vh); }
+  /* needs .race.wide: .race is declared after .wide, so at equal specificity it
+     would otherwise win and squeeze 'qu' back into a single-letter box */
+  .trace-wrap.race.wide{ width:min(430px,92vw,52vh); }
   .race-road{ fill:none; stroke:#3b414b; stroke-width:40; stroke-linecap:round; stroke-linejoin:round; }
   .race-dash{ fill:none; stroke:#ffd24d; stroke-width:3.5; stroke-linecap:round; stroke-dasharray:2 16; }
   .race-start{ fill:#3ec96b; }
@@ -499,6 +502,7 @@
       </div>
       <div class="trace-controls">
         <button class="listen" id="rListen"><span class="em">🔈</span> Hear it again</button>
+        <button class="pick-btn" id="rPick">🔤 Pick a letter</button>
         <button class="next-btn hidden" id="rNext">NEXT ▶</button>
       </div>
     </div>
@@ -551,20 +555,8 @@
 /* ============================================================
    DATA
    ============================================================ */
-// each letter -> its phoneme audio + a keyword (sound + picture word)
-const LETTERS = {
-  a:{ kw:"apple",    kwFile:"apple.m4a",    file:"a.m4a" },
-  e:{ kw:"elephant", kwFile:"elephant.m4a", file:"e.m4a" },
-  i:{ kw:"igloo",    kwFile:"igloo.m4a",    file:"i.m4a" },
-  o:{ kw:"octopus",  kwFile:"octopus.m4a",  file:"o.m4a" },
-  u:{ kw:"up",       kwFile:"up.m4a",       file:"u.m4a" },
-  b:{ kw:"ball",     kwFile:"ball.m4a",     file:"b.m4a" },
-  c:{ kw:"cat",      kwFile:"cake.m4a",     file:"c.m4a" },
-  d:{ kw:"dog",      kwFile:"dog.m4a",      file:"d.m4a" },
-  f:{ kw:"fish",     kwFile:"fish.m4a",     file:"f.m4a" },
-  g:{ kw:"goat",     kwFile:"go.m4a",       file:"g.m4a" },
-};
-const LETTER_KEYS = Object.keys(LETTERS);
+/* Letter Sounds uses SOUNDLETTERS; Trace and Race use TRACE_PATHS + audio/trace.
+   The old 10-letter LETTERS table that once capped Race is gone. */
 const SIGHT_WORDS = [
   "the","or","will","number","of","one","up","and","had","other",
   "a","by","about","to","words","out","in","but","many","is",
@@ -1458,6 +1450,9 @@ const T = { target:null, bag:[], food:[], total:0, next:0, eaten:0, locked:false
 const FLEXIBLE = new Set(['o']);
 
 const TRACE_KEYS = Object.keys(TRACE_PATHS);   // now the whole alphabet
+/* TRACE_PATHS is authored vowels-first, so its key order is jumbled. The picker
+   must read a..z ('qu' sorts between p and r). */
+const PICK_KEYS = [...TRACE_KEYS].sort();
 function nextTraceLetter(){ if(T.bag.length===0) T.bag = shuffle([...TRACE_KEYS]); return T.bag.pop(); }
 function startTrace(){ show('trace'); T.bag = []; traceRound(); }
 
@@ -1640,7 +1635,7 @@ function closePicker(){ stopAudio(); $('#picker').classList.add('hidden'); }
 $('#pickerClose').addEventListener('click', closePicker);
 $('#picker').addEventListener('click', e=>{ if(e.target.id === 'picker') closePicker(); });
 $('#lPick').addEventListener('click', ()=> openPicker(SOUND_KEYS, letter=> letterRound(letter)));
-$('#tPick').addEventListener('click', ()=> openPicker(Object.keys(TRACE_PATHS), letter=> traceRound(letter)));
+$('#tPick').addEventListener('click', ()=> openPicker(PICK_KEYS, letter=> traceRound(letter)));
 
 /* ============================================================
    GAME 4 — LETTER RACE
@@ -1711,7 +1706,7 @@ function sampleAlong(svgSel, subD, spacing){
   svg.removeChild(tp); return pts;
 }
 
-function nextRaceLetter(){ if(R.bag.length===0) R.bag = shuffle([...LETTER_KEYS]); return R.bag.pop(); }
+function nextRaceLetter(){ if(R.bag.length===0) R.bag = shuffle([...TRACE_KEYS]); return R.bag.pop(); }
 function startRace(){ actx(); show('race'); R.bag = []; buildLanes(); raceRound(); }
 
 function buildLanes(){
@@ -1730,11 +1725,14 @@ function setLane(i, p){
   c.style.left = `calc(${(p*100).toFixed(1)}% - ${(p*40).toFixed(0)}px)`;
 }
 
-function raceRound(){
+function raceRound(forced){
   R.locked = true; R.dragging = false; R.racing = false; R.finished = false;
   cancelAnimationFrame(R.raf); R.next = 0;
   $('#rNext').classList.add('hidden');
-  R.target = nextRaceLetter();
+  R.target = (typeof forced === 'string') ? forced : nextRaceLetter();
+  const vw = vbw(R.target);
+  $('#rSvg').setAttribute('viewBox', `0 0 ${vw} 300`);
+  $('#rWrap').classList.toggle('wide', vw > 220);   // 'qu' needs a wider track
   const d = TRACE_PATHS[R.target] || TRACE_PATHS.o;
   $('#rRoad').setAttribute('d', d); $('#rDash').setAttribute('d', d);
   buildRaceArrows(d); buildRaceDots(d);
@@ -1796,7 +1794,7 @@ function placeRaceMarkers(){
 }
 function placeCarAtStart(){
   const svg = $('#rSvg'); const w = svg.getBoundingClientRect().width; if(!w) return;
-  const scale = w/220; const p = $('#rRoad').getPointAtLength(0);
+  const scale = w/vbw(R.target); const p = $('#rRoad').getPointAtLength(0);
   const car = $('#rCar'); car.style.left = (p.x*scale)+'px'; car.style.top = (p.y*scale)+'px';
 }
 
@@ -1856,7 +1854,10 @@ $('#rCar').innerHTML = carSVG('#e63946');
   window.addEventListener('pointercancel', ()=>{ R.dragging = false; });
 })();
 $('#rListen').addEventListener('click', ()=> playLetterTriad(R.target));
-$('#rNext').addEventListener('click', raceRound);
+/* wrapped, not passed directly: a click handler would hand raceRound the Event
+   as its `forced` letter */
+$('#rNext').addEventListener('click', ()=> raceRound());
+$('#rPick').addEventListener('click', ()=> openPicker(PICK_KEYS, letter=> raceRound(letter)));
 </script>
 </body>
 </html>
