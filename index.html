@@ -314,6 +314,20 @@
   .name-done{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
     justify-content:center; gap:18px; background:rgba(255,255,255,.9); border-radius:26px; z-index:4; }
   .done-star{ font-size:clamp(56px,16vw,90px); animation:pop .6s; }
+  /* shape mode: faint letter outline she inks over (no dots to connect) */
+  .shape-guide{ fill:none; stroke:#e4dbf4; stroke-width:16; stroke-linecap:round; stroke-linejoin:round; }
+  .ink-line{ fill:none; stroke:#8e63d6; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
+  /* after a letter: trace its shape, or go on */
+  .name-choice{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.86); border-radius:26px; z-index:5; }
+  .choice-row{ display:flex; gap:14px; }
+  .choice-btn{ cursor:pointer; border:none; font-family:inherit; font-weight:900; color:#fff;
+    border-radius:20px; padding:16px 18px; font-size:clamp(15px,3.2vw,20px);
+    display:flex; flex-direction:column; align-items:center; gap:5px; min-width:clamp(96px,26vw,130px); }
+  .choice-btn .ic{ font-size:1.7em; line-height:1; }
+  .choice-btn.shape{ background:linear-gradient(#b58cf0,#8e63d6); box-shadow:0 6px 0 #6b46b0; }
+  .choice-btn.next{ background:linear-gradient(#7bd58f,#48c97a); box-shadow:0 6px 0 #2f9d59; }
+  .choice-btn:active{ transform:translateY(3px); }
 
   /* ---------- Letter Names: learn (flash cards) ---------- */
   .recog-learn{ justify-content:center; gap:clamp(14px,3vw,26px); }
@@ -639,10 +653,18 @@
       <div class="dot-wrap" id="nWrap">
         <svg id="nSvg" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg">
           <g id="nMeasure" fill="none" stroke="none"></g>
+          <g id="nGuide"></g>
           <g id="nLines"></g>
           <g id="nDots"></g>
         </svg>
         <div class="dot-pen hidden" id="nPen">✏️</div>
+        <!-- after a letter's dot-trace: choose to trace its shape (no dots) or move on -->
+        <div class="name-choice hidden" id="nChoice">
+          <div class="choice-row">
+            <button class="choice-btn shape" id="nShapeBtn"><span class="ic">✏️</span>Trace it</button>
+            <button class="choice-btn next" id="nNextBtn"><span class="ic">👉</span>Next</button>
+          </div>
+        </div>
         <div class="name-done hidden" id="nDone">
           <div class="done-star">🌟</div>
           <button class="play-btn" id="nRestart">↺ Again</button>
@@ -2098,31 +2120,54 @@ function pathSegmentD(pathEl, a, b){
   }
   return d.trim();
 }
-function startName(){ show('name'); N.i = 0; loadNameTask(); }
+function startName(){ show('name'); N.mode = 'dots'; N.i = 0; loadNameTask(); }
 // distinct letters in name order, for the picker
 const NAME_LETTERS = [...new Set(NAME_TASKS.map(t=>t.letter))];
 // jump to the first task of the chosen letter (e.g. 'C' → first C guided demo)
 function startNameAt(letter){
   const idx = NAME_TASKS.findIndex(t=>t.letter===letter);
   if(idx < 0) return;
-  N.i = idx; loadNameTask();
+  N.mode = 'dots'; N.i = idx; loadNameTask();
 }
 function loadNameTask(){
   const task = NAME_TASKS[N.i];
   N.letter = task.letter; N.done = false; N.cur = 0; N.dragging = false;
-  $('#nLines').innerHTML = ''; $('#nDots').innerHTML = '';
-  $('#nDone').classList.add('hidden'); $('#nPen').classList.add('hidden');
-  N.dots = buildDots(UPPER_PATHS[task.letter]);
-  N.dots.forEach((d,idx)=>{
-    const c = document.createElementNS(NS,'circle');
-    c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', 9);
-    let cls = 'dot';
-    if(idx === 0) cls += ' cur';
-    else cls += task.solo ? ' dim' : ' hiddendot';   // solo: all shown dim; guided: hidden till reached
-    c.setAttribute('class', cls);
-    $('#nDots').appendChild(c); d.el = c;
-  });
+  $('#nGuide').innerHTML = ''; $('#nLines').innerHTML = ''; $('#nDots').innerHTML = '';
+  $('#nDone').classList.add('hidden'); $('#nChoice').classList.add('hidden'); $('#nPen').classList.add('hidden');
+  N.dots = buildDots(UPPER_PATHS[task.letter]);       // also builds N.strokeEls (measure paths)
+  if(N.mode === 'shape'){
+    setupShape(task);
+  } else {
+    N.dots.forEach((d,idx)=>{
+      const c = document.createElementNS(NS,'circle');
+      c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', 9);
+      let cls = 'dot';
+      if(idx === 0) cls += ' cur';
+      else cls += task.solo ? ' dim' : ' hiddendot';  // solo: all shown dim; guided: hidden till reached
+      c.setAttribute('class', cls);
+      $('#nDots').appendChild(c); d.el = c;
+    });
+  }
   renderNameProgress();
+}
+// shape mode: show a faint outline of the letter and let her ink over it freely
+function setupShape(task){
+  const subs = UPPER_PATHS[task.letter].match(/M[^M]*/g) || [UPPER_PATHS[task.letter]];
+  subs.forEach(d=>{
+    const g = document.createElementNS(NS,'path');
+    g.setAttribute('d', d); g.setAttribute('class', 'shape-guide');
+    $('#nGuide').appendChild(g);
+  });
+  // dense invisible checkpoints along the real path → forgiving coverage check
+  N.checks = []; N.covered = 0;
+  N.strokeEls.forEach(p=>{
+    const len = p.getTotalLength(); const n = Math.max(2, Math.round(len/9));
+    for(let k=0;k<=n;k++){ const pt = p.getPointAtLength(len*k/n); N.checks.push({ x:pt.x, y:pt.y, hit:false }); }
+  });
+  N.total = N.checks.length;
+  N.inkPts = [];
+  N.inkEl = document.createElementNS(NS,'path'); N.inkEl.setAttribute('class', 'ink-line');
+  $('#nLines').appendChild(N.inkEl);
 }
 function renderNameProgress(){
   const prog = $('#nProg'); prog.innerHTML = '';
@@ -2142,10 +2187,19 @@ function nTouch(e){
   pen.classList.remove('hidden');
   pen.style.left = (e.clientX - wrap.left) + 'px';
   pen.style.top  = (e.clientY - wrap.top)  + 'px';
+  if(N.mode === 'shape'){ nShapeTouch(e, wrap, scale); return; }
   const d = N.dots[N.cur]; if(!d) return;
   const sx = wrap.left + d.x*scale, sy = wrap.top + d.y*scale;
   const thresh = Math.max(30, wrap.width * 0.12);     // forgiving for small hands
   if(Math.hypot(e.clientX - sx, e.clientY - sy) < thresh) reachDot();
+}
+// shape mode: draw her ink trail and mark the outline covered as she goes over it
+function nShapeTouch(e, wrap, scale){
+  const ux = (e.clientX - wrap.left) / scale, uy = (e.clientY - wrap.top) / scale;
+  N.inkPts.push([ux, uy]);
+  N.inkEl.setAttribute('d', 'M' + N.inkPts.map(p=> p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L'));
+  for(const c of N.checks){ if(!c.hit && Math.hypot(c.x-ux, c.y-uy) < 13){ c.hit = true; N.covered++; } }
+  if(N.covered / N.total >= 0.8) nComplete();          // covered most of the shape → done
 }
 function reachDot(){
   const d = N.dots[N.cur];
@@ -2162,6 +2216,13 @@ function reachDot(){
   if(N.cur >= N.dots.length){ nComplete(); return; }
   N.dots[N.cur].el.setAttribute('class', 'dot cur');  // reveal / light the next one
 }
+function isLastOfLetter(i){ const nx = NAME_TASKS[i+1]; return !nx || nx.letter !== NAME_TASKS[i].letter; }
+function advanceName(){
+  N.mode = 'dots';
+  N.i++;
+  if(N.i >= NAME_TASKS.length) $('#nDone').classList.remove('hidden');
+  else loadNameTask();
+}
 function nComplete(){
   N.done = true; N.dragging = false;
   $('#nPen').classList.add('hidden');
@@ -2169,11 +2230,12 @@ function nComplete(){
   const r = $('#nWrap').getBoundingClientRect();
   stars(r.left + r.width/2, r.top + r.height/2);
   playSequence([ lnAudio(N.letter) ]);                // reinforce with the letter's name
-  setTimeout(()=>{
-    N.i++;
-    if(N.i >= NAME_TASKS.length) $('#nDone').classList.remove('hidden');
-    else loadNameTask();
-  }, 1200);
+  // after finishing a letter with dots, offer the no-dots shape trace of that same letter
+  if(N.mode === 'dots' && isLastOfLetter(N.i)){
+    setTimeout(()=> $('#nChoice').classList.remove('hidden'), 750);
+    return;
+  }
+  setTimeout(advanceName, 1200);                      // mid-letter reps and shape traces just move on
 }
 (function(){
   const wrap = $('#nWrap');
@@ -2192,6 +2254,9 @@ function nComplete(){
 })();
 $('#nRestart').addEventListener('click', startName);
 $('#nPick').addEventListener('click', ()=> openPicker(NAME_LETTERS, letter=> startNameAt(letter)));
+// the post-letter choice: trace the same letter's shape (no dots), or move on
+$('#nShapeBtn').addEventListener('click', ()=>{ N.mode = 'shape'; loadNameTask(); });
+$('#nNextBtn').addEventListener('click', advanceName);
 
 /* ============================================================
    GAME 6 — LETTER NAMES  (recognise A–J, then smack the mole)
