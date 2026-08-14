@@ -648,6 +648,7 @@
           <button class="play-btn" id="nRestart">↺ Again</button>
         </div>
       </div>
+      <button class="pick-btn" id="nPick">🔤 Pick a letter</button>
     </div>
   </section>
 
@@ -2098,6 +2099,14 @@ function pathSegmentD(pathEl, a, b){
   return d.trim();
 }
 function startName(){ show('name'); N.i = 0; loadNameTask(); }
+// distinct letters in name order, for the picker
+const NAME_LETTERS = [...new Set(NAME_TASKS.map(t=>t.letter))];
+// jump to the first task of the chosen letter (e.g. 'C' → first C guided demo)
+function startNameAt(letter){
+  const idx = NAME_TASKS.findIndex(t=>t.letter===letter);
+  if(idx < 0) return;
+  N.i = idx; loadNameTask();
+}
 function loadNameTask(){
   const task = NAME_TASKS[N.i];
   N.letter = task.letter; N.done = false; N.cur = 0; N.dragging = false;
@@ -2182,6 +2191,7 @@ function nComplete(){
   window.addEventListener('pointercancel', up);
 })();
 $('#nRestart').addEventListener('click', startName);
+$('#nPick').addEventListener('click', ()=> openPicker(NAME_LETTERS, letter=> startNameAt(letter)));
 
 /* ============================================================
    GAME 6 — LETTER NAMES  (recognise A–J, then smack the mole)
