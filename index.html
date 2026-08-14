@@ -300,7 +300,8 @@
     -webkit-user-select:none; user-select:none; background:#fbfdff; border-radius:26px;
     box-shadow:inset 0 0 0 4px #eaf1f7; }
   #nSvg{ display:block; width:100%; height:100%; }
-  .trace-line{ fill:none; stroke:#8e63d6; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
+  /* miter join keeps L's corner sharp; curves (S/O/C) follow the real path so they stay smooth */
+  .trace-line{ fill:none; stroke:#8e63d6; stroke-width:13; stroke-linecap:round; stroke-linejoin:miter; stroke-miterlimit:6; }
   .dot{ fill:#cfd9e3; }
   .dot.hiddendot{ opacity:0; }
   .dot.dim{ fill:#e0d3f6; }
@@ -637,6 +638,7 @@
       <div class="name-progress" id="nProg"></div>
       <div class="dot-wrap" id="nWrap">
         <svg id="nSvg" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg">
+          <g id="nMeasure" fill="none" stroke="none"></g>
           <g id="nLines"></g>
           <g id="nDots"></g>
         </svg>
@@ -2065,21 +2067,35 @@ const N = { i:0, dots:[], cur:0, dragging:false, done:false, letter:'S' };
 function buildDots(pathD){
   const subs = pathD.match(/M[^M]*/g) || [pathD];
   const dots = [];
+  const measure = $('#nMeasure'); measure.innerHTML = '';
+  N.strokeEls = [];
   subs.forEach((d,si)=>{
+    // keep a hidden measure path per stroke so the drawn line can follow the
+    // real curve between dots (not a straight chord) — smooth S/O/C, sharp L
     const p = document.createElementNS(NS,'path');
     p.setAttribute('d', d);
-    $('#nSvg').appendChild(p);
+    measure.appendChild(p);
+    N.strokeEls[si] = p;
     const len = p.getTotalLength();
-    // more dots on longer/curved strokes → rounder O and C, and smaller gaps
-    // (more dots = more scaffolding, which is easier for her, not harder)
+    // more dots on longer/curved strokes → smaller gaps (more scaffolding = easier)
     const n = Math.min(9, Math.max(3, Math.round(len/40) + 1));
     for(let k=0;k<n;k++){
-      const pt = p.getPointAtLength(len * k / (n-1));
-      dots.push({ x:pt.x, y:pt.y, stroke:si });
+      const L = len * k / (n-1);
+      const pt = p.getPointAtLength(L);
+      dots.push({ x:pt.x, y:pt.y, stroke:si, len:L });
     }
-    $('#nSvg').removeChild(p);
   });
   return dots;
+}
+// SVG "d" for the real path between two arc-lengths on a stroke (finely sampled)
+function pathSegmentD(pathEl, a, b){
+  const nSteps = Math.max(1, Math.ceil(Math.abs(b-a) / 3));
+  let d = '';
+  for(let k=0;k<=nSteps;k++){
+    const pt = pathEl.getPointAtLength(a + (b-a) * k/nSteps);
+    d += (k===0 ? 'M' : 'L') + pt.x.toFixed(1) + ' ' + pt.y.toFixed(1) + ' ';
+  }
+  return d.trim();
 }
 function startName(){ show('name'); N.i = 0; loadNameTask(); }
 function loadNameTask(){
@@ -2127,11 +2143,11 @@ function reachDot(){
   d.el.setAttribute('class', 'dot done');
   const prev = N.dots[N.cur-1];
   if(prev && prev.stroke === d.stroke){               // no line across a pen lift
-    const ln = document.createElementNS(NS,'line');
-    ln.setAttribute('x1', prev.x); ln.setAttribute('y1', prev.y);
-    ln.setAttribute('x2', d.x);    ln.setAttribute('y2', d.y);
-    ln.setAttribute('class', 'trace-line');
-    $('#nLines').appendChild(ln);
+    // follow the real path between the two dots so curves stay curved
+    const seg = document.createElementNS(NS,'path');
+    seg.setAttribute('d', pathSegmentD(N.strokeEls[d.stroke], prev.len, d.len));
+    seg.setAttribute('class', 'trace-line');
+    $('#nLines').appendChild(seg);
   }
   N.cur++;
   if(N.cur >= N.dots.length){ nComplete(); return; }
