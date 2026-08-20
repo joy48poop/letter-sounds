@@ -393,11 +393,11 @@
     background:linear-gradient(#d3f1ff 0 66%, #c3ebff 66% 100%); }
   .jump-ground{ position:absolute; left:0; right:0; bottom:0; height:16%;
     background:linear-gradient(#8ad06a 0 34%, #6bb84e 34% 100%); box-shadow:inset 0 6px 0 rgba(0,0,0,.06); }
-  .jump-player{ position:absolute; left:15%; bottom:16%; width:15%; z-index:3; will-change:transform; }
-  .jump-player img{ width:100%; height:auto; display:block; -webkit-user-drag:none; }
+  .jump-player{ position:absolute; left:16%; bottom:16%; width:9%; z-index:3; will-change:transform; }
+  .jump-player svg{ width:100%; height:auto; display:block; }
   .jump-player.hit{ animation:jhit .5s steps(1); }
   @keyframes jhit{ 0%,100%{ opacity:1 } 20%,60%{ opacity:.25 } 40%,80%{ opacity:1 } }
-  .jump-monster{ position:absolute; bottom:16%; width:12%; z-index:2; will-change:transform; }
+  .jump-monster{ position:absolute; bottom:16%; width:10%; z-index:2; will-change:transform; }
   .jump-monster svg{ width:100%; height:auto; display:block; }
   .jump-hint{ position:absolute; left:14%; bottom:40%; text-align:center; color:#2f6f9e; font-weight:900;
     font-size:clamp(34px,8vw,52px); animation:hintbob 1s ease-in-out infinite; pointer-events:none; }
@@ -780,7 +780,7 @@
       <div class="jump-timebar"><div class="jump-timefill" id="jumpTimeFill"></div></div>
     </div>
     <div class="jump-stage" id="jumpStage">
-      <div class="jump-player" id="jumpPlayer"><img src="assets/squirrel.png" alt="" draggable="false"></div>
+      <div class="jump-player" id="jumpPlayer"></div>
       <div class="jump-ground"></div>
       <div class="jump-hint" id="jumpHint">👆<span>Jump!</span></div>
       <div class="jump-end hidden" id="jumpEnd">
@@ -2401,6 +2401,30 @@ function goblinSVG(){
   </svg>`;
 }
 
+// mini web-hero figure (original cartoon) — the little player that jumps the goblins
+function spideySVG(){
+  return `<svg viewBox="0 0 80 124" xmlns="http://www.w3.org/2000/svg">
+    <path d="M34 74 L27 112 L37 112 L40 86 Z" fill="#2747c8"/>
+    <path d="M46 74 L53 112 L43 112 L40 86 Z" fill="#2747c8"/>
+    <ellipse cx="30" cy="114" rx="8" ry="5" fill="#c62828"/>
+    <ellipse cx="50" cy="114" rx="8" ry="5" fill="#c62828"/>
+    <path d="M24 46 L9 30 L15 23 L31 40 Z" fill="#e23b3b"/>
+    <path d="M56 46 L71 30 L65 23 L49 40 Z" fill="#e23b3b"/>
+    <ellipse cx="11" cy="27" rx="6" ry="6" fill="#c62828"/>
+    <ellipse cx="69" cy="27" rx="6" ry="6" fill="#c62828"/>
+    <path d="M26 40 Q 40 33 54 40 L53 74 Q 40 80 27 74 Z" fill="#e23b3b"/>
+    <path d="M27 68 Q 40 76 53 68 L53 80 Q 40 86 27 80 Z" fill="#2747c8"/>
+    <circle cx="40" cy="24" r="16" fill="#e23b3b"/>
+    <path d="M27 21 Q 34 14 39 21 Q 34 27 27 21 Z" fill="#fff" stroke="#15294f" stroke-width="1.6"/>
+    <path d="M53 21 Q 46 14 41 21 Q 46 27 53 21 Z" fill="#fff" stroke="#15294f" stroke-width="1.6"/>
+    <g stroke="#7a1414" stroke-width="1" fill="none" opacity=".65">
+      <path d="M40 8 L40 40 M25 24 L55 24 M30 13 L50 13 M30 35 L50 35"/>
+      <path d="M40 40 L40 74 M27 52 L53 52 M29 64 L51 64"/>
+    </g>
+    <circle cx="40" cy="54" r="2.6" fill="#15294f"/>
+  </svg>`;
+}
+
 // Spider-web shooter — a red gloved hand (index + pinky up) flinging a web
 function webHandSVG(){
   return `<svg viewBox="0 0 140 154" xmlns="http://www.w3.org/2000/svg">
@@ -2557,10 +2581,11 @@ function startJumpGame(onDone){
   $('#jumpStage').querySelectorAll('.jump-monster').forEach(el=> el.remove());
   $('#jumpEnd').classList.add('hidden');
   $('#jumpHint').classList.remove('hidden');
+  $('#jumpPlayer').innerHTML = spideySVG();
   $('#jumpPlayer').style.transform = 'translateY(0)';
   renderLives();
   const now = performance.now();
-  JUMP.last = now; JUMP.ends = now + 20000; JUMP.lastSpawn = now - 600; JUMP.spawnGap = 1400;
+  JUMP.last = now; JUMP.ends = now + 20000; JUMP.lastSpawn = now - 100; JUMP.spawnGap = 2000;
   setTimeout(()=> $('#jumpHint').classList.add('hidden'), 2600);
   cancelAnimationFrame(JUMP.raf); JUMP.raf = requestAnimationFrame(jumpLoop);
 }
@@ -2571,7 +2596,7 @@ function renderLives(){
 function jumpDo(){
   if(!JUMP.running || !JUMP.onGround) return;
   const H = $('#jumpStage').clientHeight || 400;
-  JUMP.vy = H * 1.6; JUMP.onGround = false;      // upward impulse
+  JUMP.vy = H * 1.5; JUMP.onGround = false;      // upward impulse (floaty, easy to clear)
   $('#jumpHint').classList.add('hidden');
   beep(560, 0.08, 'square', 0.12);
 }
@@ -2595,21 +2620,21 @@ function jumpLoop(now){
   const dt = Math.min(0.05, (now - JUMP.last) / 1000 || 0); JUMP.last = now;
   const st = $('#jumpStage'); const W = st.clientWidth, H = st.clientHeight;
   // vertical physics (y = height above ground, up positive)
-  JUMP.vy -= H * 3.3 * dt;
+  JUMP.vy -= H * 2.4 * dt;                        // gentle gravity → long, floaty hang time
   JUMP.y += JUMP.vy * dt;
   if(JUMP.y <= 0){ JUMP.y = 0; JUMP.vy = 0; JUMP.onGround = true; }
   $('#jumpPlayer').style.transform = `translateY(${-JUMP.y}px)`;
-  // spawn goblins
+  // spawn goblins (well spaced so there's time to react)
   if(now - JUMP.lastSpawn > JUMP.spawnGap){
-    JUMP.lastSpawn = now; JUMP.spawnGap = 1350 + Math.random()*950; spawnMonster(W);
+    JUMP.lastSpawn = now; JUMP.spawnGap = 1900 + Math.random()*1300; spawnMonster(W);
   }
-  // move + collide
-  const playerC = W*0.225, tol = W*0.085, lowY = H*0.10;
+  // move + collide — only a real overlap while she's low counts as a hit
+  const playerC = W*0.205, tol = W*0.055, lowY = H*0.055;
   for(let i=JUMP.monsters.length-1;i>=0;i--){
     const m = JUMP.monsters[i];
-    m.x -= W * 0.42 * dt;
+    m.x -= W * 0.32 * dt;                         // slower goblins
     m.el.style.transform = `translateX(${m.x}px)`;
-    const mc = m.x + W*0.06;
+    const mc = m.x + W*0.05;
     if(!m.hit && JUMP.invuln<=0 && Math.abs(mc-playerC)<tol && JUMP.y<lowY){
       m.hit = true; loseLife(); m.el.remove(); JUMP.monsters.splice(i,1);
       if(!JUMP.running) return; continue;
