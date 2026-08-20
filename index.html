@@ -381,6 +381,31 @@
     40%{ transform:scale(1.08) rotate(2deg); opacity:1; }
     70%{ transform:scale(1) rotate(0); opacity:1; } 100%{ transform:scale(1); opacity:0; } }
 
+  /* ---------- Jump mini-game ---------- */
+  #jump{ padding:0; }
+  .jump-hud{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 20px; }
+  .jump-lives{ display:flex; gap:6px; font-size:clamp(24px,5.4vw,36px); }
+  .jump-lives .heart.lost{ filter:grayscale(1); opacity:.32; }
+  .jump-timebar{ flex:1; max-width:460px; height:16px; background:#d7e6f2; border-radius:10px;
+    overflow:hidden; box-shadow:inset 0 2px 0 rgba(0,0,0,.06); }
+  .jump-timefill{ height:100%; width:100%; background:linear-gradient(#7bd58f,#48c97a); border-radius:10px; }
+  .jump-stage{ position:relative; flex:1; width:100%; overflow:hidden; touch-action:manipulation; cursor:pointer;
+    background:linear-gradient(#d3f1ff 0 66%, #c3ebff 66% 100%); }
+  .jump-ground{ position:absolute; left:0; right:0; bottom:0; height:16%;
+    background:linear-gradient(#8ad06a 0 34%, #6bb84e 34% 100%); box-shadow:inset 0 6px 0 rgba(0,0,0,.06); }
+  .jump-player{ position:absolute; left:15%; bottom:16%; width:15%; z-index:3; will-change:transform; }
+  .jump-player img{ width:100%; height:auto; display:block; -webkit-user-drag:none; }
+  .jump-player.hit{ animation:jhit .5s steps(1); }
+  @keyframes jhit{ 0%,100%{ opacity:1 } 20%,60%{ opacity:.25 } 40%,80%{ opacity:1 } }
+  .jump-monster{ position:absolute; bottom:16%; width:12%; z-index:2; will-change:transform; }
+  .jump-monster svg{ width:100%; height:auto; display:block; }
+  .jump-hint{ position:absolute; left:14%; bottom:40%; text-align:center; color:#2f6f9e; font-weight:900;
+    font-size:clamp(34px,8vw,52px); animation:hintbob 1s ease-in-out infinite; pointer-events:none; }
+  .jump-hint span{ display:block; font-size:.5em; }
+  @keyframes hintbob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-12px) } }
+  .jump-end{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:20px; background:rgba(255,255,255,.9); z-index:6; }
+
   /* ---------- Letter Names: mole game ---------- */
   .recog-game{ justify-content:flex-start; gap:16px; padding-top:12px; }
   .mole-board{ display:flex; gap:clamp(8px,3vw,40px); justify-content:center;
@@ -740,6 +765,28 @@
       <div class="prompt" id="molePrompt">👂 Listen…</div>
       <button class="listen" id="moleAgain"><span class="em">🔈</span> Hear it again</button>
       <div class="mole-board" id="moleBoard"></div>
+    </div>
+  </section>
+
+  <!-- =================== JUMP mini-game (reward after 5 letters) =================== -->
+  <section id="jump" class="screen">
+    <div class="bar">
+      <button class="icon-btn" data-home>🏠</button>
+      <div class="bar-title">🕹️ Jump!</div>
+      <button class="icon-btn mutebtn" title="Sound on/off">🔊</button>
+    </div>
+    <div class="jump-hud">
+      <div class="jump-lives" id="jumpLives"></div>
+      <div class="jump-timebar"><div class="jump-timefill" id="jumpTimeFill"></div></div>
+    </div>
+    <div class="jump-stage" id="jumpStage">
+      <div class="jump-player" id="jumpPlayer"><img src="assets/squirrel.png" alt="" draggable="false"></div>
+      <div class="jump-ground"></div>
+      <div class="jump-hint" id="jumpHint">👆<span>Jump!</span></div>
+      <div class="jump-end hidden" id="jumpEnd">
+        <div class="done-star" id="jumpStar">🌟</div>
+        <button class="play-btn" id="jumpAgain">▶ Keep going</button>
+      </div>
     </div>
   </section>
 
@@ -1283,6 +1330,9 @@ function whack(cx, cy){
    ============================================================ */
 function show(id){
   stopAudio();
+  if(typeof JUMP !== 'undefined' && JUMP.running && id !== 'jump'){   // leaving the jump game
+    JUMP.running = false; cancelAnimationFrame(JUMP.raf);
+  }
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#'+id).classList.add('active');
 }
@@ -2444,11 +2494,13 @@ $('#flashNext').addEventListener('click', ()=>{ RECOG.i = (RECOG.i + 1) % RECOG.
 $('#flashHear').addEventListener('click', ()=> playSequence([ lnAudio(RECOG.letters[RECOG.i]) ]));
 $('#recogPlay').addEventListener('click', startMoleGame);
 
-const MOLE = { target:null, locked:true, count:3 };
+const MOLE = { target:null, locked:true, count:3, correct:0 };
 function startMoleGame(){
+  show('recog');
   $('#recogCats').classList.add('hidden');
   $('#recogLearn').classList.add('hidden');
   $('#recogGame').classList.remove('hidden');
+  MOLE.correct = 0;
   moleRound();
 }
 function moleRound(){
@@ -2478,10 +2530,12 @@ function smackMole(m, e){
     MOLE.locked = true;
     m.classList.add('bonk','good');
     dingDing();                                       // ✔ correct — ding ding
+    MOLE.correct++;
     $('#molePrompt').innerHTML = `⭐ ${letterGlyph(MOLE.target)} ⭐`;
     const r = m.getBoundingClientRect(); stars(r.left + r.width/2, r.top + r.height/2);
     setTimeout(()=> playSequence([ lnAudio(MOLE.target) ]), 520);   // then say the letter
-    setTimeout(moleRound, 1900);
+    if(MOLE.correct % 5 === 0) setTimeout(()=> startJumpGame(startMoleGame), 1900);  // reward break
+    else setTimeout(moleRound, 1900);
   } else {
     m.classList.remove('wrong'); void m.offsetWidth; m.classList.add('wrong');  // stays up
     $('#molePrompt').innerHTML = '🔁 Try again';
@@ -2489,6 +2543,99 @@ function smackMole(m, e){
   }
 }
 $('#moleAgain').addEventListener('click', ()=>{ if(MOLE.target) playSequence([ lnAudio(MOLE.target) ]); });
+
+/* ---------- Jump mini-game: reward after every 5 correct letters ----------
+   Squirrel runs; goblins slide in; press SPACE or tap to jump over them.
+   3 lives, a hit costs one; the round lasts 20 seconds. */
+const JUMP = { running:false, lives:3, y:0, vy:0, onGround:true, monsters:[],
+  raf:0, last:0, ends:0, lastSpawn:0, spawnGap:1400, invuln:0, onDone:null };
+function startJumpGame(onDone){
+  show('jump');
+  JUMP.onDone = onDone;
+  JUMP.running = true; JUMP.lives = 3; JUMP.y = 0; JUMP.vy = 0; JUMP.onGround = true;
+  JUMP.monsters.forEach(m=> m.el.remove()); JUMP.monsters = []; JUMP.invuln = 0;
+  $('#jumpStage').querySelectorAll('.jump-monster').forEach(el=> el.remove());
+  $('#jumpEnd').classList.add('hidden');
+  $('#jumpHint').classList.remove('hidden');
+  $('#jumpPlayer').style.transform = 'translateY(0)';
+  renderLives();
+  const now = performance.now();
+  JUMP.last = now; JUMP.ends = now + 20000; JUMP.lastSpawn = now - 600; JUMP.spawnGap = 1400;
+  setTimeout(()=> $('#jumpHint').classList.add('hidden'), 2600);
+  cancelAnimationFrame(JUMP.raf); JUMP.raf = requestAnimationFrame(jumpLoop);
+}
+function renderLives(){
+  let h = ''; for(let i=0;i<3;i++) h += `<span class="heart${i < JUMP.lives ? '' : ' lost'}">❤️</span>`;
+  $('#jumpLives').innerHTML = h;
+}
+function jumpDo(){
+  if(!JUMP.running || !JUMP.onGround) return;
+  const H = $('#jumpStage').clientHeight || 400;
+  JUMP.vy = H * 1.6; JUMP.onGround = false;      // upward impulse
+  $('#jumpHint').classList.add('hidden');
+  beep(560, 0.08, 'square', 0.12);
+}
+function spawnMonster(W){
+  const el = document.createElement('div');
+  el.className = 'jump-monster';
+  el.innerHTML = goblinSVG();
+  $('#jumpStage').appendChild(el);
+  const m = { el, x: W + 20, hit:false };
+  el.style.transform = `translateX(${m.x}px)`;
+  JUMP.monsters.push(m);
+}
+function loseLife(){
+  JUMP.lives--; renderLives(); JUMP.invuln = 950;
+  const p = $('#jumpPlayer'); p.classList.remove('hit'); void p.offsetWidth; p.classList.add('hit');
+  beep(190, 0.22, 'sawtooth', 0.18);
+  if(JUMP.lives <= 0) endJump(false);
+}
+function jumpLoop(now){
+  if(!JUMP.running) return;
+  const dt = Math.min(0.05, (now - JUMP.last) / 1000 || 0); JUMP.last = now;
+  const st = $('#jumpStage'); const W = st.clientWidth, H = st.clientHeight;
+  // vertical physics (y = height above ground, up positive)
+  JUMP.vy -= H * 3.3 * dt;
+  JUMP.y += JUMP.vy * dt;
+  if(JUMP.y <= 0){ JUMP.y = 0; JUMP.vy = 0; JUMP.onGround = true; }
+  $('#jumpPlayer').style.transform = `translateY(${-JUMP.y}px)`;
+  // spawn goblins
+  if(now - JUMP.lastSpawn > JUMP.spawnGap){
+    JUMP.lastSpawn = now; JUMP.spawnGap = 1350 + Math.random()*950; spawnMonster(W);
+  }
+  // move + collide
+  const playerC = W*0.225, tol = W*0.085, lowY = H*0.10;
+  for(let i=JUMP.monsters.length-1;i>=0;i--){
+    const m = JUMP.monsters[i];
+    m.x -= W * 0.42 * dt;
+    m.el.style.transform = `translateX(${m.x}px)`;
+    const mc = m.x + W*0.06;
+    if(!m.hit && JUMP.invuln<=0 && Math.abs(mc-playerC)<tol && JUMP.y<lowY){
+      m.hit = true; loseLife(); m.el.remove(); JUMP.monsters.splice(i,1);
+      if(!JUMP.running) return; continue;
+    }
+    if(m.x < -W*0.2){ m.el.remove(); JUMP.monsters.splice(i,1); }
+  }
+  if(JUMP.invuln > 0) JUMP.invuln -= dt*1000;
+  const left = JUMP.ends - now;
+  $('#jumpTimeFill').style.width = Math.max(0, left/20000*100) + '%';
+  if(left <= 0){ endJump(true); return; }
+  JUMP.raf = requestAnimationFrame(jumpLoop);
+}
+function endJump(survived){
+  JUMP.running = false; cancelAnimationFrame(JUMP.raf);
+  JUMP.monsters.forEach(m=> m.el.remove()); JUMP.monsters = [];
+  $('#jumpStar').textContent = survived ? '🌟' : '💪';   // both endings stay positive
+  $('#jumpEnd').classList.remove('hidden');
+  const r = $('#jumpStage').getBoundingClientRect(); stars(r.left + r.width/2, r.top + r.height*0.4);
+  beep(880, 0.12, 'sine', 0.2); setTimeout(()=> beep(1175, 0.16, 'sine', 0.2), 150);
+}
+// SPACE (keyboard) and tap (iPad) both jump
+window.addEventListener('keydown', e=>{
+  if(e.code === 'Space' && $('#jump').classList.contains('active')){ e.preventDefault(); jumpDo(); }
+});
+$('#jumpStage').addEventListener('pointerdown', ()=>{ if(JUMP.running) jumpDo(); });
+$('#jumpAgain').addEventListener('click', ()=>{ $('#jumpEnd').classList.add('hidden'); if(JUMP.onDone) JUMP.onDone(); });
 </script>
 </body>
 </html>
