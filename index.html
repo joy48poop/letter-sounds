@@ -341,6 +341,9 @@
     font-size:clamp(110px,28vw,200px); font-weight:900; color:#3a4a5a; line-height:1; }
   .flash-letter .glyph-svg{ height:62%; width:auto; }
   .flash-bubble{ width:clamp(130px,32vw,210px); height:clamp(130px,32vw,210px); }
+  /* A-D shape pictures (pyramid, B-man, moon, mug) fill more of the flash bubble */
+  .flash-bubble .bubble-pic{ width:88%; height:88%; }
+  .shape-pic{ width:100%; height:100%; object-fit:contain; display:block; }
   .flash-dots{ display:flex; gap:7px; }
   .flash-dots .fd{ width:11px; height:11px; border-radius:50%; background:#cfd9e3; }
   .flash-dots .fd.on{ background:#ef5f8c; transform:scale(1.25); }
@@ -2506,10 +2509,14 @@ function backToCats(){
 }
 $$('[data-recogback]').forEach(b=> b.addEventListener('click', backToCats));
 
+// Letter Names A-D: object pictures that echo the letter shape (pyramid, B-belly, moon, mug)
+const SHAPE_PICS = { A:'a', B:'b', C:'c', D:'d' };
 function showFlash(){
   const ch = RECOG.letters[RECOG.i];
   $('#flashLetter').innerHTML = letterGlyph(ch);
-  $('#flashPic').innerHTML = KEYWORD_ART[SOUNDLETTERS[ch.toLowerCase()]] || '';
+  $('#flashPic').innerHTML = SHAPE_PICS[ch]
+    ? `<img class="shape-pic" src="assets/shapes/${SHAPE_PICS[ch]}.png" alt="" draggable="false">`
+    : (KEYWORD_ART[SOUNDLETTERS[ch.toLowerCase()]] || '');
   $('#flashDots').innerHTML = RECOG.letters.map((_,k)=>`<span class="fd${k===RECOG.i?' on':''}"></span>`).join('');
   playSequence([ lnAudio(ch) ]);
 }
