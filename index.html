@@ -94,6 +94,8 @@
   .b-recog:active{ box-shadow:0 3px 0 #c93f6a; }
   .b-spot{ background:linear-gradient(#5be0d3,#26b3a3); box-shadow:0 8px 0 #1c8a7d; }
   .b-spot:active{ box-shadow:0 3px 0 #1c8a7d; }
+  .b-haunted{ background:linear-gradient(#7d63b8,#4f3a8c); box-shadow:0 8px 0 #33245e; }
+  .b-haunted:active{ box-shadow:0 3px 0 #33245e; }
 
   /* ---------- shared prompt ---------- */
   .prompt{ font-weight:900; color:#2f6f9e; text-align:center;
@@ -622,6 +624,8 @@
         <span class="em">🔠</span> Letter Names</button>
       <button class="big b-spot" data-go="spot">
         <span class="em">🔍</span> Spot the Letter</button>
+      <button class="big b-haunted" data-go="haunted">
+        <span class="em">👻</span> Haunted Hunt</button>
     </div>
   </section>
 
@@ -738,6 +742,32 @@
         </div>
       </div>
       <button class="next-btn hidden" id="spPlayAgain">Play Again 🔁</button>
+    </div>
+  </section>
+
+  <!-- =================== HAUNTED HUNT (spot A, B, C, D) =================== -->
+  <section id="haunted" class="screen">
+    <div class="bar">
+      <button class="icon-btn" data-home>🏠</button>
+      <div class="bar-title">👻 Haunted Hunt</div>
+      <button class="icon-btn mutebtn" title="Sound on/off">🔊</button>
+    </div>
+    <div class="play-area">
+      <div class="prompt" id="hnPrompt">👻 Find the hidden A, B, C, and D!</div>
+      <div class="spot-progress" id="hnProgress"></div>
+      <div class="spot-wrap" id="hnWrap">
+        <img id="hnImg" src="assets/spot/haunted-abcd.svg" alt="">
+        <div class="magnifier mag-big" id="hnMag">
+          <div class="mag-zoom" id="hnZoom"></div>
+          <svg viewBox="0 0 74 74" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="30" cy="30" r="20" fill="none" stroke="#3a3a3a" stroke-width="6"/>
+            <circle cx="30" cy="30" r="20" fill="none" stroke="#ffd66b" stroke-width="2.5" opacity=".85"/>
+            <line x1="44" y1="44" x2="66" y2="66" stroke="#3a3a3a" stroke-width="8" stroke-linecap="round"/>
+            <line x1="44" y1="44" x2="66" y2="66" stroke="#8a5a2f" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+      <button class="next-btn hidden" id="hnPlayAgain">Play Again 🔁</button>
     </div>
   </section>
 
@@ -1452,6 +1482,7 @@ $$('.menu .big').forEach(b=> b.addEventListener('click', ()=>{
   else if(go==='race') startRace();
   else if(go==='name') startName();
   else if(go==='spot') startSpot();
+  else if(go==='haunted') startHaunted();
   else startRecog();
 }));
 $$('.mutebtn').forEach(b=> b.addEventListener('click', ()=>{
@@ -2934,6 +2965,77 @@ function spotHuntComplete(){
   wrap.addEventListener('pointerleave', ()=>{ $('#spMag2').style.display = 'none'; });
 })();
 $('#spPlayAgain').addEventListener('click', startHunt);
+
+/* ============================================================
+   GAME: HAUNTED HUNT — spot A, B, C and D (one of each) hidden
+   around a haunted-house scene. Hunt only, no tracing first.
+   ============================================================ */
+const HAUNTED_TARGETS = [
+  {x:13.125, y:69.375, letter:'A'},   // tombstone
+  {x:44.375, y:89.375, letter:'B'},   // spellbook
+  {x:78.75,  y:92.25,  letter:'C'},   // jack-o-lantern
+  {x:67.5,   y:65.0,   letter:'D'},   // front door
+];
+const HN = { found:new Set() };
+
+function startHaunted(){
+  show('haunted');
+  HN.found = new Set();
+  $('#hnPrompt').textContent = "👻 Find the hidden A, B, C, and D!";
+  $('#hnPlayAgain').classList.add('hidden');
+  $('#hnWrap').querySelectorAll('.found-badge').forEach(b=> b.remove());
+  $('#hnZoom').style.backgroundImage = "url(assets/spot/haunted-abcd.svg)";
+  const prog = $('#hnProgress'); prog.innerHTML = '';
+  HAUNTED_TARGETS.forEach((t,i)=>{
+    const c = document.createElement('div');
+    c.className = 'spot-chip'; c.id = 'hnChip'+i; c.textContent = t.letter;
+    prog.appendChild(c);
+  });
+}
+
+function hauntedMove(e){
+  moveMagnifier($('#hnMag'), $('#hnWrap'), e);
+  const rect = $('#hnWrap').getBoundingClientRect();
+  const zoom = $('#hnZoom');
+  const half = zoom.getBoundingClientRect().width/2;
+  const px = e.clientX-rect.left, py = e.clientY-rect.top;
+  zoom.style.backgroundSize = (rect.width*SPOT_ZOOM)+'px '+(rect.height*SPOT_ZOOM)+'px';
+  zoom.style.backgroundPosition = (-(px*SPOT_ZOOM-half))+'px '+(-(py*SPOT_ZOOM-half))+'px';
+}
+function hauntedTap(e){
+  const rect = $('#hnWrap').getBoundingClientRect();
+  const xPct = (e.clientX-rect.left)/rect.width*100;
+  const yPct = (e.clientY-rect.top)/rect.height*100;
+  HAUNTED_TARGETS.forEach((t,i)=>{
+    if(HN.found.has(i)) return;
+    if(Math.hypot(xPct-t.x, yPct-t.y) < 7) hauntedFound(i, t);
+  });
+}
+function hauntedFound(i, t){
+  HN.found.add(i);
+  beep(880, 0.12, 'sine', 0.22); setTimeout(()=> beep(1175, 0.14, 'sine', 0.2), 110);
+  const badge = document.createElement('div');
+  badge.className = 'found-badge'; badge.textContent = '⭐';
+  badge.style.left = t.x+'%'; badge.style.top = t.y+'%';
+  $('#hnWrap').appendChild(badge);
+  $('#hnChip'+i).classList.add('found');
+  if(HN.found.size >= HAUNTED_TARGETS.length) hauntedComplete();
+}
+function hauntedComplete(){
+  banner();
+  const r = $('#hnWrap').getBoundingClientRect();
+  stars(r.left + r.width/2, r.top + r.height/2);
+  $('#hnPrompt').textContent = '🎉 You found them all!';
+  $('#hnPlayAgain').classList.remove('hidden');
+}
+
+(function(){
+  const wrap = $('#hnWrap');
+  wrap.addEventListener('pointermove', hauntedMove);
+  wrap.addEventListener('pointerdown', e=>{ hauntedMove(e); hauntedTap(e); });
+  wrap.addEventListener('pointerleave', ()=>{ $('#hnMag').style.display = 'none'; });
+})();
+$('#hnPlayAgain').addEventListener('click', startHaunted);
 </script>
 </body>
 </html>
