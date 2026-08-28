@@ -2777,7 +2777,9 @@ $('#jumpAgain').addEventListener('click', ()=>{ $('#jumpEnd').classList.add('hid
    every capital D hidden in a themed scene. A magnifying glass
    follows her finger in both phases so she feels like a detective.
    ============================================================ */
-const SP_D_STROKES = ["M70 40 L70 220", "M70 40 Q190 40 190 130 Q190 220 70 220"];
+// one continuous closed outline (not two separate strokes) so the stem meets the
+// bowl in a clean rounded corner instead of two round end-caps overlapping
+const SP_D_STROKES = ["M70 220 L70 40 Q190 40 190 130 Q190 220 70 220 Z"];
 // {x,y} as % of the (square) scene image — see verify_overlay2.png for how these were placed
 const SPOT_TARGETS = [
   {x:25.5, y:24.3}, {x:11.4, y:57.1}, {x:23.0, y:56.5}, {x:44.5, y:19.5},
