@@ -308,8 +308,9 @@
     filter:drop-shadow(0 4px 3px rgba(0,0,0,.28)); will-change:left,top; }
   .magnifier svg{ position:relative; width:100%; height:100%; display:block; z-index:1; }
   /* bigger lens for the hunt: the zoomed view needs to cover a whole hidden D at
-     a glance, not just whatever's dead-centre under the pointer */
-  .magnifier.mag-big{ width:170px; height:170px; margin-left:-69px; margin-top:-69px; }
+     a glance, not just whatever's dead-centre under the pointer. Sized as a % of
+     .spot-wrap (which is always square) so it scales with the picture. */
+  .magnifier.mag-big{ width:46%; height:46%; margin-left:-18.7%; margin-top:-18.7%; }
   .mag-zoom{ position:absolute; left:23%; top:23%; width:54%; height:54%; border-radius:50%;
     background-repeat:no-repeat; overflow:hidden; }
 
@@ -2887,7 +2888,7 @@ function startHunt(){
   });
 }
 
-const SPOT_ZOOM = 1.5;   // low enough that a whole hidden D shows without nudging the lens
+const SPOT_ZOOM = 1.35;   // low enough that a whole hidden D shows without nudging the lens
 function spotHuntMove(e){
   moveMagnifier($('#spMag2'), $('#spWrap'), e);
   const rect = $('#spWrap').getBoundingClientRect();
