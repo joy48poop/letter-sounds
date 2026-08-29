@@ -105,15 +105,15 @@
   <!-- door, with a hidden D -->
   <path d="M505 550 L505 500 Q505 480 525 480 L555 480 Q575 480 575 500 L575 550 Z"
         fill="#180f22" stroke="#241a30" stroke-width="3"/>
-  <text x="540" y="518" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900"
-        font-size="52" fill="#d8c8a0" text-anchor="middle" dominant-baseline="central">D</text>
+  <text x="540" y="521" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900"
+        font-size="62" fill="#d8c8a0" text-anchor="middle" dominant-baseline="central">D</text>
   <circle cx="568" cy="545" r="4" fill="#d8c8a0"/>
 
   <!-- tombstone, with a hidden A -->
   <path d="M60 600 L60 530 Q60 495 105 495 Q150 495 150 530 L150 600 Z"
         fill="#8a8f98" stroke="#5b616b" stroke-width="4"/>
-  <text x="105" y="557" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900"
-        font-size="48" fill="#4a4e58" text-anchor="middle" dominant-baseline="central">A</text>
+  <text x="105" y="558" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900"
+        font-size="60" fill="#4a4e58" text-anchor="middle" dominant-baseline="central">A</text>
 
   <!-- blank decoy tombstone -->
   <path d="M690 640 L690 590 Q690 565 720 565 Q750 565 750 590 L750 640 Z"
@@ -124,7 +124,7 @@
         fill="#5b3a8a" stroke="#3a2560" stroke-width="3"/>
   <line x1="355" y1="680" x2="355" y2="750" stroke="#3a2560" stroke-width="2"/>
   <text x="355" y="717" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900"
-        font-size="42" fill="#e8dcff" text-anchor="middle" dominant-baseline="central">B</text>
+        font-size="52" fill="#e8dcff" text-anchor="middle" dominant-baseline="central">B</text>
 
   <!-- jack-o-lantern, with a hidden C -->
   <ellipse cx="630" cy="735" rx="58" ry="48" fill="#ff8a3d" stroke="#c9601f" stroke-width="4"/>
@@ -133,7 +133,7 @@
   <path d="M660 692 Q668 735 660 778" stroke="#c9601f" stroke-width="3" fill="none"/>
   <rect x="620" y="678" width="20" height="26" rx="6" fill="#5a8a3d" stroke="#3f6b28" stroke-width="2"/>
   <text x="630" y="740" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900"
-        font-size="48" fill="#7a3b12" text-anchor="middle" dominant-baseline="central">C</text>
+        font-size="60" fill="#7a3b12" text-anchor="middle" dominant-baseline="central">C</text>
 
   <!-- blank decoy pumpkin, with its own jack-o-lantern face -->
   <ellipse cx="470" cy="760" rx="38" ry="32" fill="#ff8a3d" stroke="#c9601f" stroke-width="3"/>
