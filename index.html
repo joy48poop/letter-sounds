@@ -2302,9 +2302,13 @@ const UPPER_PATHS = {
   L:"M62 44 L62 216 L150 216",
   C:"M152 78 Q 133 46 100 46 Q 52 46 52 131 Q 52 216 100 216 Q 133 216 152 184",
   O:"M100 46 Q 52 46 52 131 Q 52 216 100 216 Q 148 216 148 131 Q 148 46 100 46",
+  F:"M60 44 L60 216 M60 44 L150 44 M60 128 L132 128",
+  I:"M70 44 L130 44 M100 44 L100 216 M70 216 L130 216",
+  Q:"M100 46 Q 52 46 52 131 Q 52 216 100 216 Q 148 216 148 131 Q 148 46 100 46 M132 178 L166 218",
 };
 const NAME_TASKS = [];
 ['S','H','A'].forEach(L => NAME_TASKS.push({ letter:L, solo:false, group:'SHA' }));
+['F','I','Q','A'].forEach(L => NAME_TASKS.push({ letter:L, solo:false, group:'FIQA' }));  // SHA + FIQA = SHAFIQA
 ['L','C','O'].forEach(L => {
   NAME_TASKS.push({ letter:L, solo:false, group:L });          // 1 guided
   for(let k=0;k<4;k++) NAME_TASKS.push({ letter:L, solo:true, group:L });  // 4 by herself
