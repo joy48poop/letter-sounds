@@ -978,8 +978,8 @@
       <div class="word-wrap" id="wwWrap">
         <svg id="wwSvg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
           <g id="wwMeasure" fill="none" stroke="none"></g>
+          <g id="wwGuide"></g>
           <g id="wwLines"></g>
-          <g id="wwDots"></g>
         </svg>
         <div class="dot-pen hidden" id="wwPen">✏️</div>
         <div class="name-done hidden" id="wwTraceDone">
@@ -990,8 +990,9 @@
       <div class="ww-progress" id="wwProg"></div>
       <div class="ww-controls">
         <button class="listen" id="wwHear"><span class="em">🔈</span> Hear</button>
-        <button class="pick-btn" id="wwSkip">🕸️ Skip to game</button>
+        <button class="play-btn done-go" id="wwDoneBtn">✓ Done</button>
       </div>
+      <button class="pick-btn" id="wwSkip">🕸️ Skip to game</button>
     </div>
 
     <!-- GAME phase: speaker says a word, whack the goblin holding it -->
@@ -2893,31 +2894,24 @@ const WW_WORDS = ['me','my','yes','see','with','want'];
 const WW = { wi:0, dots:[], cur:0, dragging:false, done:false, strokeEls:[], vbw:400 };
 const WW_ADV = 150, WW_LMARGIN = 30;   // per-letter advance + left margin (viewBox units)
 
-// lay every letter of the word in a row and place dots along all their strokes
-function buildWordDots(word){
+// lay every letter of the word in a row; keep a measure path per stroke and
+// compute the viewBox (normal tracing — she inks over the faint word, no dots)
+function buildWordStrokes(word){
   const measure = $('#wwMeasure'); measure.innerHTML = '';
-  WW.strokeEls = []; const dots = []; let si = 0;
+  WW.strokeEls = []; let si = 0, maxX = 0;
   [...word].forEach((ch, li)=>{
     const dx = WW_LMARGIN + li * WW_ADV;
     const subs = (TRACE_PATHS[ch] || TRACE_PATHS.o).match(/M[^M]*/g) || [TRACE_PATHS[ch]];
     subs.forEach(d=>{
       const p = document.createElementNS(NS,'path'); p.setAttribute('d', d);
-      measure.appendChild(p); WW.strokeEls[si] = { el:p, dx };
+      measure.appendChild(p); WW.strokeEls[si++] = { el:p, dx, d };
       const len = p.getTotalLength();
-      const n = Math.min(9, Math.max(3, Math.round(len/40) + 1));
-      for(let k=0;k<n;k++){ const L = len*k/(n-1); const pt = p.getPointAtLength(L);
-        dots.push({ x: pt.x + dx, y: pt.y, stroke: si, len:L }); }
-      si++;
+      for(let k=0;k<=10;k++){ maxX = Math.max(maxX, p.getPointAtLength(len*k/10).x + dx); }
     });
   });
-  return dots;
-}
-// like pathSegmentD but shifted by the letter's x-offset
-function wordSegD(pathEl, a, b, dx){
-  const nSteps = Math.max(1, Math.ceil(Math.abs(b-a)/3)); let d = '';
-  for(let k=0;k<=nSteps;k++){ const pt = pathEl.getPointAtLength(a + (b-a)*k/nSteps);
-    d += (k===0?'M':'L') + (pt.x+dx).toFixed(1) + ' ' + pt.y.toFixed(1) + ' '; }
-  return d.trim();
+  WW.vbw = maxX + WW_LMARGIN;
+  $('#wwSvg').setAttribute('viewBox', `0 0 ${Math.round(WW.vbw)} 300`);
+  $('#wwWrap').style.setProperty('--wwasp', (WW.vbw/300).toFixed(3));
 }
 function renderWordProgress(){
   $('#wwProg').innerHTML = WW_WORDS.map((_,k)=>
@@ -2925,20 +2919,23 @@ function renderWordProgress(){
 }
 function loadWord(){
   const word = WW_WORDS[WW.wi];
-  WW.done = false; WW.cur = 0; WW.dragging = false;
-  $('#wwLines').innerHTML = ''; $('#wwDots').innerHTML = '';
+  WW.done = false; WW.dragging = false;
+  $('#wwGuide').innerHTML = ''; $('#wwLines').innerHTML = '';
   $('#wwTraceDone').classList.add('hidden'); $('#wwPen').classList.add('hidden');
-  WW.dots = buildWordDots(word);
-  WW.vbw = Math.max(...WW.dots.map(d=>d.x)) + WW_LMARGIN;
-  $('#wwSvg').setAttribute('viewBox', `0 0 ${Math.round(WW.vbw)} 300`);
-  $('#wwWrap').style.setProperty('--wwasp', (WW.vbw/300).toFixed(3));
-  WW.dots.forEach((d,idx)=>{
-    const c = document.createElementNS(NS,'circle');
-    c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', 9);
-    c.setAttribute('class', 'dot' + (idx===0 ? ' cur' : ' hiddendot'));
-    $('#wwDots').appendChild(c); d.el = c;
+  buildWordStrokes(word);
+  // faint outline of the whole word to trace over
+  WW.strokeEls.forEach(s=>{
+    const g = document.createElementNS(NS,'path');
+    g.setAttribute('d', s.d); g.setAttribute('transform', `translate(${s.dx},0)`);
+    g.setAttribute('class', 'shape-guide');
+    $('#wwGuide').appendChild(g);
   });
+  // her ink trail (one sub-path per finger stroke, so pen lifts don't join)
+  WW.inkSegs = [];
+  WW.inkEl = document.createElementNS(NS,'path'); WW.inkEl.setAttribute('class', 'ink-line');
+  $('#wwLines').appendChild(WW.inkEl);
   $('#wwLabel').textContent = word;
+  $('#wwDoneBtn').classList.remove('hidden');
   renderWordProgress();
   say(word);
 }
@@ -2947,29 +2944,16 @@ function wwTouch(e){
   const scale = wrap.width / WW.vbw;
   const pen = $('#wwPen'); pen.classList.remove('hidden');
   pen.style.left = (e.clientX - wrap.left)+'px'; pen.style.top = (e.clientY - wrap.top)+'px';
-  const d = WW.dots[WW.cur]; if(!d) return;
-  const sx = wrap.left + d.x*scale, sy = wrap.top + d.y*scale;
-  const thresh = Math.max(26, scale*30);
-  if(Math.hypot(e.clientX-sx, e.clientY-sy) < thresh) reachWordDot();
+  const ux = (e.clientX - wrap.left)/scale, uy = (e.clientY - wrap.top)/scale;
+  const seg = WW.inkSegs[WW.inkSegs.length - 1]; if(!seg) return;
+  seg.push(ux.toFixed(1) + ' ' + uy.toFixed(1));
+  WW.inkEl.setAttribute('d', WW.inkSegs.filter(s=>s.length).map(s=> 'M' + s.join(' L')).join(' '));
 }
-function reachWordDot(){
-  const d = WW.dots[WW.cur];
-  d.el.setAttribute('class','dot done');
-  const prev = WW.dots[WW.cur-1];
-  if(prev && prev.stroke === d.stroke){
-    const s = WW.strokeEls[d.stroke];
-    const seg = document.createElementNS(NS,'path');
-    seg.setAttribute('d', wordSegD(s.el, prev.len, d.len, s.dx));
-    seg.setAttribute('class','trace-line');
-    $('#wwLines').appendChild(seg);
-  }
-  WW.cur++;
-  if(WW.cur >= WW.dots.length){ wordComplete(); return; }
-  WW.dots[WW.cur].el.setAttribute('class','dot cur');
-}
-function wordComplete(){
+// student/teacher taps "Done" when the word has been traced
+function finishWord(){
+  if(WW.done) return;
   WW.done = true; WW.dragging = false;
-  $('#wwPen').classList.add('hidden');
+  $('#wwPen').classList.add('hidden'); $('#wwDoneBtn').classList.add('hidden');
   const wd = $('#wwProg .wd.cur'); if(wd){ wd.classList.remove('cur'); wd.classList.add('done'); }
   const r = $('#wwWrap').getBoundingClientRect();
   stars(r.left + r.width/2, r.top + r.height/2);
@@ -2991,6 +2975,7 @@ function startWword(){
   wrap.addEventListener('pointerdown', e=>{
     if(WW.done) return;
     WW.dragging = true; try{ wrap.setPointerCapture(e.pointerId); }catch(_){}
+    WW.inkSegs.push([]);           // each press starts a fresh ink stroke
     e.preventDefault(); wwTouch(e);
   });
   wrap.addEventListener('pointermove', e=>{ if(WW.done || !WW.dragging) return; e.preventDefault(); wwTouch(e); });
@@ -2998,6 +2983,7 @@ function startWword(){
   window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
 })();
 $('#wwHear').addEventListener('click', ()=> say(WW_WORDS[WW.wi]));
+$('#wwDoneBtn').addEventListener('click', finishWord);
 $('#wwSkip').addEventListener('click', startWwordGame);
 $('#wwPlay').addEventListener('click', startWwordGame);
 
