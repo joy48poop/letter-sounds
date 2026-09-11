@@ -96,6 +96,8 @@
   .b-spot:active{ box-shadow:0 3px 0 #1c8a7d; }
   .b-haunted{ background:linear-gradient(#7d63b8,#4f3a8c); box-shadow:0 8px 0 #33245e; }
   .b-haunted:active{ box-shadow:0 3px 0 #33245e; }
+  .b-wword{ background:linear-gradient(#ff9a5c,#ef6d3a); box-shadow:0 8px 0 #c9521f; }
+  .b-wword:active{ box-shadow:0 3px 0 #c9521f; }
 
   /* ---------- shared prompt ---------- */
   .prompt{ font-weight:900; color:#2f6f9e; text-align:center;
@@ -377,6 +379,43 @@
   .done-go{ background:linear-gradient(#7bd58f,#48c97a); box-shadow:0 8px 0 #2f9d59; }
   .done-go:active{ box-shadow:0 3px 0 #2f9d59; }
 
+  /* ---------- Whack a Word: trace the whole word ---------- */
+  .ww-trace{ justify-content:center; gap:clamp(10px,2.6vw,20px); padding-top:10px; }
+  .ww-label{ font-weight:900; color:#2f6f9e; font-size:clamp(30px,8vw,60px); letter-spacing:.06em;
+    text-shadow:0 2px 0 rgba(255,255,255,.6); min-height:1em; }
+  /* width follows the word's aspect so letters stay a similar height across words */
+  .word-wrap{ position:relative; aspect-ratio:var(--wwasp,1.5);
+    width:min(94vw, calc(44vh * var(--wwasp,1.5))); touch-action:none;
+    -webkit-user-select:none; user-select:none; background:#fbfdff; border-radius:22px;
+    box-shadow:inset 0 0 0 4px #eaf1f7; }
+  #wwSvg{ display:block; width:100%; height:auto; }
+  .ww-progress{ display:flex; gap:9px; }
+  .ww-progress .wd{ width:13px; height:13px; border-radius:50%; background:#cfd9e3; }
+  .ww-progress .wd.done{ background:#48c97a; }
+  .ww-progress .wd.cur{ background:#8e63d6; transform:scale(1.3); }
+  .ww-controls{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+
+  /* ---------- Whack a Word: the goblin word game ---------- */
+  .ww-game{ justify-content:flex-start; gap:16px; padding-top:12px; }
+  .ww-board{ display:flex; gap:clamp(8px,3vw,34px); justify-content:center; align-items:flex-end; flex-wrap:nowrap; }
+  .ww-mole{ position:relative; width:clamp(104px,29vw,210px); cursor:pointer; }
+  .ww-mole .mole-hole{ position:absolute; left:2%; right:2%; bottom:0; height:24%;
+    background:radial-gradient(120% 160% at 50% 0%, #b7c2cf 0 52%, #7d8a99 100%);
+    border-radius:50%/62% 62% 100% 100%; box-shadow:inset 0 -6px 0 rgba(0,0,0,.14); }
+  .ww-guy{ position:absolute; left:50%; bottom:8%; width:56%;
+    transform:translate(-50%,150%); transition:transform .42s cubic-bezier(.34,1.56,.64,1); }
+  .ww-mole.up .ww-guy{ transform:translate(-50%,0); }
+  .ww-guy > svg{ display:block; width:100%; height:auto; }
+  .ww-banner{ position:absolute; left:50%; bottom:20%; transform:translate(-50%,150%);
+    transition:transform .42s cubic-bezier(.34,1.56,.64,1) .04s;
+    background:linear-gradient(#fff6e6,#ffe6b8); border:5px solid #cf9a3f; border-radius:16px;
+    box-shadow:0 5px 0 #b5822e; padding:8px 14px; font-weight:900; color:#5a3d12;
+    font-size:clamp(24px,6vw,44px); white-space:nowrap; }
+  .ww-mole.up .ww-banner{ transform:translate(-50%,0); }
+  .ww-mole.bonk .ww-guy{ animation:molebonk .5s; }
+  .ww-mole.wrong .ww-banner{ animation:molewobble .42s; }
+  .ww-mole.good .ww-banner{ background:linear-gradient(#c9f7d6,#8df0a8); border-color:#3ec96b; animation:pop .5s; }
+
   /* ---------- Letter Names: learn (flash cards) ---------- */
   .recog-learn{ justify-content:center; gap:clamp(14px,3vw,26px); }
   .flash-card{ display:flex; align-items:center; gap:clamp(14px,5vw,44px); }
@@ -626,6 +665,8 @@
         <span class="em">🔍</span> Spot the Letter</button>
       <button class="big b-haunted" data-go="haunted">
         <span class="em">👻</span> Haunted Hunt</button>
+      <button class="big b-wword" data-go="wword">
+        <span class="em">🕸️</span> Whack a Word</button>
     </div>
   </section>
 
@@ -920,6 +961,44 @@
         <div class="done-star" id="jumpStar">🌟</div>
         <button class="play-btn" id="jumpAgain">▶ Keep going</button>
       </div>
+    </div>
+  </section>
+
+  <!-- =================== WHACK A WORD (trace the words, then whack) =================== -->
+  <section id="wword" class="screen">
+    <div class="bar">
+      <button class="icon-btn" data-home>🏠</button>
+      <div class="bar-title">🕸️ Whack a Word</div>
+      <button class="icon-btn mutebtn" title="Sound on/off">🔊</button>
+    </div>
+
+    <!-- TRACE phase: trace each word before the game -->
+    <div class="play-area ww-trace" id="wwTrace">
+      <div class="ww-label" id="wwLabel"></div>
+      <div class="word-wrap" id="wwWrap">
+        <svg id="wwSvg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+          <g id="wwMeasure" fill="none" stroke="none"></g>
+          <g id="wwLines"></g>
+          <g id="wwDots"></g>
+        </svg>
+        <div class="dot-pen hidden" id="wwPen">✏️</div>
+        <div class="name-done hidden" id="wwTraceDone">
+          <div class="done-star">🌟</div>
+          <button class="play-btn" id="wwPlay">▶ Play the game</button>
+        </div>
+      </div>
+      <div class="ww-progress" id="wwProg"></div>
+      <div class="ww-controls">
+        <button class="listen" id="wwHear"><span class="em">🔈</span> Hear</button>
+        <button class="pick-btn" id="wwSkip">🕸️ Skip to game</button>
+      </div>
+    </div>
+
+    <!-- GAME phase: speaker says a word, whack the goblin holding it -->
+    <div class="play-area ww-game hidden" id="wwGame">
+      <div class="prompt" id="wwPrompt">👂 Listen…</div>
+      <button class="listen" id="wwAgain"><span class="em">🔈</span> Hear it again</button>
+      <div class="ww-board" id="wwBoard"></div>
     </div>
   </section>
 
@@ -1483,6 +1562,7 @@ $$('.menu .big').forEach(b=> b.addEventListener('click', ()=>{
   else if(go==='name') startName();
   else if(go==='spot') startSpot();
   else if(go==='haunted') startHaunted();
+  else if(go==='wword') startWword();
   else startRecog();
 }));
 $$('.mutebtn').forEach(b=> b.addEventListener('click', ()=>{
@@ -2804,6 +2884,167 @@ window.addEventListener('keydown', e=>{
 });
 $('#jumpStage').addEventListener('pointerdown', ()=>{ if(JUMP.running) jumpDo(); });
 $('#jumpAgain').addEventListener('click', ()=>{ $('#jumpEnd').classList.add('hidden'); if(JUMP.onDone) JUMP.onDone(); });
+
+/* ============================================================
+   WHACK A WORD — trace each word (connect the dots), then a
+   goblin whack game: hear a word, smack the goblin holding it.
+   ============================================================ */
+const WW_WORDS = ['me','my','yes','see','with','want'];
+const WW = { wi:0, dots:[], cur:0, dragging:false, done:false, strokeEls:[], vbw:400 };
+const WW_ADV = 150, WW_LMARGIN = 30;   // per-letter advance + left margin (viewBox units)
+
+// lay every letter of the word in a row and place dots along all their strokes
+function buildWordDots(word){
+  const measure = $('#wwMeasure'); measure.innerHTML = '';
+  WW.strokeEls = []; const dots = []; let si = 0;
+  [...word].forEach((ch, li)=>{
+    const dx = WW_LMARGIN + li * WW_ADV;
+    const subs = (TRACE_PATHS[ch] || TRACE_PATHS.o).match(/M[^M]*/g) || [TRACE_PATHS[ch]];
+    subs.forEach(d=>{
+      const p = document.createElementNS(NS,'path'); p.setAttribute('d', d);
+      measure.appendChild(p); WW.strokeEls[si] = { el:p, dx };
+      const len = p.getTotalLength();
+      const n = Math.min(9, Math.max(3, Math.round(len/40) + 1));
+      for(let k=0;k<n;k++){ const L = len*k/(n-1); const pt = p.getPointAtLength(L);
+        dots.push({ x: pt.x + dx, y: pt.y, stroke: si, len:L }); }
+      si++;
+    });
+  });
+  return dots;
+}
+// like pathSegmentD but shifted by the letter's x-offset
+function wordSegD(pathEl, a, b, dx){
+  const nSteps = Math.max(1, Math.ceil(Math.abs(b-a)/3)); let d = '';
+  for(let k=0;k<=nSteps;k++){ const pt = pathEl.getPointAtLength(a + (b-a)*k/nSteps);
+    d += (k===0?'M':'L') + (pt.x+dx).toFixed(1) + ' ' + pt.y.toFixed(1) + ' '; }
+  return d.trim();
+}
+function renderWordProgress(){
+  $('#wwProg').innerHTML = WW_WORDS.map((_,k)=>
+    `<span class="wd${k<WW.wi?' done':k===WW.wi?' cur':''}"></span>`).join('');
+}
+function loadWord(){
+  const word = WW_WORDS[WW.wi];
+  WW.done = false; WW.cur = 0; WW.dragging = false;
+  $('#wwLines').innerHTML = ''; $('#wwDots').innerHTML = '';
+  $('#wwTraceDone').classList.add('hidden'); $('#wwPen').classList.add('hidden');
+  WW.dots = buildWordDots(word);
+  WW.vbw = Math.max(...WW.dots.map(d=>d.x)) + WW_LMARGIN;
+  $('#wwSvg').setAttribute('viewBox', `0 0 ${Math.round(WW.vbw)} 300`);
+  $('#wwWrap').style.setProperty('--wwasp', (WW.vbw/300).toFixed(3));
+  WW.dots.forEach((d,idx)=>{
+    const c = document.createElementNS(NS,'circle');
+    c.setAttribute('cx', d.x); c.setAttribute('cy', d.y); c.setAttribute('r', 9);
+    c.setAttribute('class', 'dot' + (idx===0 ? ' cur' : ' hiddendot'));
+    $('#wwDots').appendChild(c); d.el = c;
+  });
+  $('#wwLabel').textContent = word;
+  renderWordProgress();
+  say(word);
+}
+function wwTouch(e){
+  const wrap = $('#wwWrap').getBoundingClientRect();
+  const scale = wrap.width / WW.vbw;
+  const pen = $('#wwPen'); pen.classList.remove('hidden');
+  pen.style.left = (e.clientX - wrap.left)+'px'; pen.style.top = (e.clientY - wrap.top)+'px';
+  const d = WW.dots[WW.cur]; if(!d) return;
+  const sx = wrap.left + d.x*scale, sy = wrap.top + d.y*scale;
+  const thresh = Math.max(26, scale*30);
+  if(Math.hypot(e.clientX-sx, e.clientY-sy) < thresh) reachWordDot();
+}
+function reachWordDot(){
+  const d = WW.dots[WW.cur];
+  d.el.setAttribute('class','dot done');
+  const prev = WW.dots[WW.cur-1];
+  if(prev && prev.stroke === d.stroke){
+    const s = WW.strokeEls[d.stroke];
+    const seg = document.createElementNS(NS,'path');
+    seg.setAttribute('d', wordSegD(s.el, prev.len, d.len, s.dx));
+    seg.setAttribute('class','trace-line');
+    $('#wwLines').appendChild(seg);
+  }
+  WW.cur++;
+  if(WW.cur >= WW.dots.length){ wordComplete(); return; }
+  WW.dots[WW.cur].el.setAttribute('class','dot cur');
+}
+function wordComplete(){
+  WW.done = true; WW.dragging = false;
+  $('#wwPen').classList.add('hidden');
+  const wd = $('#wwProg .wd.cur'); if(wd){ wd.classList.remove('cur'); wd.classList.add('done'); }
+  const r = $('#wwWrap').getBoundingClientRect();
+  stars(r.left + r.width/2, r.top + r.height/2);
+  say(WW_WORDS[WW.wi]);
+  setTimeout(()=>{
+    WW.wi++;
+    if(WW.wi >= WW_WORDS.length) $('#wwTraceDone').classList.remove('hidden');  // all traced → play the game
+    else loadWord();
+  }, 1200);
+}
+function startWword(){
+  show('wword');
+  $('#wwGame').classList.add('hidden');
+  $('#wwTrace').classList.remove('hidden');
+  WW.wi = 0; loadWord();
+}
+(function(){
+  const wrap = $('#wwWrap');
+  wrap.addEventListener('pointerdown', e=>{
+    if(WW.done) return;
+    WW.dragging = true; try{ wrap.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault(); wwTouch(e);
+  });
+  wrap.addEventListener('pointermove', e=>{ if(WW.done || !WW.dragging) return; e.preventDefault(); wwTouch(e); });
+  const up = ()=>{ WW.dragging = false; if(!WW.done) $('#wwPen').classList.add('hidden'); };
+  window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+})();
+$('#wwHear').addEventListener('click', ()=> say(WW_WORDS[WW.wi]));
+$('#wwSkip').addEventListener('click', startWwordGame);
+$('#wwPlay').addEventListener('click', startWwordGame);
+
+// ---- the goblin word-whack ----
+const WWG = { target:null, locked:true, count:3 };
+function startWwordGame(){
+  show('wword');
+  $('#wwTrace').classList.add('hidden');
+  $('#wwGame').classList.remove('hidden');
+  wwgRound();
+}
+function wwgRound(){
+  WWG.locked = true;
+  const board = $('#wwBoard'); board.innerHTML = '';
+  const n = Math.min(WWG.count, WW_WORDS.length);
+  const chosen = shuffle([...WW_WORDS]).slice(0, n);
+  WWG.target = chosen[Math.random()*chosen.length|0];
+  shuffle(chosen).forEach(w=>{
+    const m = document.createElement('div');
+    m.className = 'ww-mole'; m.dataset.word = w;
+    m.innerHTML = `<div class="mole-hole"></div><div class="ww-guy">${goblinSVG()}</div><div class="ww-banner">${w}</div>`;
+    m.addEventListener('pointerdown', e=> wwgSmack(m, e));
+    board.appendChild(m);
+  });
+  shuffle([...board.children]).forEach((m,k)=> setTimeout(()=> m.classList.add('up'), 150 + k*140));
+  $('#wwPrompt').textContent = '👂 Listen…';
+  setTimeout(()=> say(WWG.target, ()=>{ WWG.locked = false; $('#wwPrompt').innerHTML = '🕸️ Get the word!'; }),
+    150 + n*140 + 250);
+}
+function wwgSmack(m, e){
+  webShoot(e.clientX, e.clientY);
+  if(WWG.locked) return;
+  if(m.dataset.word === WWG.target){
+    WWG.locked = true;
+    m.classList.add('bonk','good');
+    dingDing();
+    $('#wwPrompt').innerHTML = `⭐ ${WWG.target} ⭐`;
+    const r = m.getBoundingClientRect(); stars(r.left + r.width/2, r.top + r.height/2);
+    setTimeout(()=> say(WWG.target), 520);
+    setTimeout(wwgRound, 1900);
+  } else {
+    m.classList.remove('wrong'); void m.offsetWidth; m.classList.add('wrong');
+    $('#wwPrompt').innerHTML = '🔁 Try again';
+    tryAgainCue();
+  }
+}
+$('#wwAgain').addEventListener('click', ()=>{ if(WWG.target) say(WWG.target); });
 
 /* ============================================================
    GAME: SPOT THE LETTER — an uppercase-letter hidden-picture hunt.
