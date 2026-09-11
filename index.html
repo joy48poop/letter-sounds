@@ -493,6 +493,40 @@
   .jump-end{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
     justify-content:center; gap:20px; background:rgba(255,255,255,.9); z-index:6; }
 
+  /* ---------- Feed the Monster reward ---------- */
+  .feed-stage{ position:relative; flex:1; width:100%; overflow:hidden; touch-action:manipulation;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    background:linear-gradient(#eaf7ff 0 68%, #cdeec0 68% 100%); }
+  .feed-back{ position:absolute; top:12px; left:12px; z-index:7; padding:10px 18px; font-size:18px;
+    background:linear-gradient(#9db4c6,#7b96ab); box-shadow:0 6px 0 #5f778a; }
+  .feed-back:active{ box-shadow:0 2px 0 #5f778a; }
+  .feed-count{ position:absolute; top:16px; left:50%; transform:translateX(-50%); display:flex; gap:5px;
+    flex-wrap:wrap; max-width:70%; justify-content:center; z-index:4; }
+  .feed-pip{ width:13px; height:13px; border-radius:50%; background:#e6dcc4; box-shadow:inset 0 0 0 2px #d0bf98; }
+  .feed-pip.on{ background:#c98a3f; box-shadow:inset 0 0 0 2px #a86e28; }
+  .monster{ position:absolute; left:50%; bottom:26%; transform:translateX(-50%);
+    width:clamp(150px,44vw,300px); z-index:2; }
+  .monster-inner{ transform:scale(var(--mscale,1)); transform-origin:center bottom;
+    transition:transform .3s cubic-bezier(.34,1.6,.5,1); }
+  .monster-inner svg{ width:100%; height:auto; display:block; }
+  .monster-inner.chomp{ animation:mchomp .3s; }
+  @keyframes mchomp{ 0%,100%{ transform:scale(var(--mscale,1)); }
+    45%{ transform:scale(calc(var(--mscale,1) * 1.09)); } }
+  .monster-inner.shake{ animation:mshake .55s; }
+  @keyframes mshake{ 0%,100%{ transform:scale(var(--mscale,1)) rotate(0); }
+    20%{ transform:scale(var(--mscale,1)) rotate(-5deg); } 60%{ transform:scale(var(--mscale,1)) rotate(5deg); } }
+  .cookie-btn{ position:relative; z-index:3; margin-bottom:26px; cursor:pointer; border:none; background:#fff;
+    border-radius:50%; width:clamp(88px,21vw,124px); height:clamp(88px,21vw,124px);
+    font-size:clamp(48px,12vw,70px); line-height:1; box-shadow:0 7px 0 #d9c39a; }
+  .cookie-btn:active{ transform:translateY(4px); box-shadow:0 3px 0 #d9c39a; }
+  .fly-cookie{ position:fixed; z-index:90; font-size:46px; pointer-events:none; transform:translate(-50%,-50%);
+    transition:transform .34s ease-in, opacity .34s ease-in; }
+  .feed-burst{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    z-index:5; pointer-events:none; }
+  .big-poop{ font-size:clamp(90px,28vw,190px); animation:pop .5s; }
+  .fly-poop{ position:absolute; left:50%; top:50%; font-size:clamp(30px,7vw,46px); pointer-events:none;
+    transform:translate(-50%,-50%); transition:transform .8s ease-out, opacity .8s; }
+
   /* ---------- Letter Names: mole game ---------- */
   .recog-game{ justify-content:flex-start; gap:16px; padding-top:12px; }
   .mole-board{ display:flex; gap:clamp(8px,3vw,40px); justify-content:center;
@@ -961,6 +995,22 @@
         <div class="done-star" id="jumpStar">🌟</div>
         <button class="play-btn" id="jumpAgain">▶ Keep going</button>
       </div>
+    </div>
+  </section>
+
+  <!-- =================== FEED THE MONSTER (reward after 5 whacks) =================== -->
+  <section id="feed" class="screen">
+    <div class="bar">
+      <button class="icon-btn" data-home>🏠</button>
+      <div class="bar-title">🍪 Feed the Monster</div>
+      <button class="icon-btn mutebtn" title="Sound on/off">🔊</button>
+    </div>
+    <div class="feed-stage" id="feedStage">
+      <button class="play-btn feed-back" id="feedBack">▶ Back</button>
+      <div class="feed-count" id="feedCount"></div>
+      <div class="monster" id="monster"><div class="monster-inner" id="monsterInner"></div></div>
+      <div class="feed-burst hidden" id="feedBurst"></div>
+      <button class="cookie-btn" id="cookieBtn">🍪</button>
     </div>
   </section>
 
@@ -2988,11 +3038,12 @@ $('#wwSkip').addEventListener('click', startWwordGame);
 $('#wwPlay').addEventListener('click', startWwordGame);
 
 // ---- the goblin word-whack ----
-const WWG = { target:null, locked:true, count:3 };
+const WWG = { target:null, locked:true, count:3, correct:0 };
 function startWwordGame(){
   show('wword');
   $('#wwTrace').classList.add('hidden');
   $('#wwGame').classList.remove('hidden');
+  WWG.correct = 0;
   wwgRound();
 }
 function wwgRound(){
@@ -3020,10 +3071,12 @@ function wwgSmack(m, e){
     WWG.locked = true;
     m.classList.add('bonk','good');
     dingDing();
+    WWG.correct++;
     $('#wwPrompt').innerHTML = `⭐ ${WWG.target} ⭐`;
     const r = m.getBoundingClientRect(); stars(r.left + r.width/2, r.top + r.height/2);
     setTimeout(()=> say(WWG.target), 520);
-    setTimeout(wwgRound, 1900);
+    if(WWG.correct % 5 === 0) setTimeout(()=> startFeedGame(startWwordGame), 1900);  // cookie reward
+    else setTimeout(wwgRound, 1900);
   } else {
     m.classList.remove('wrong'); void m.offsetWidth; m.classList.add('wrong');
     $('#wwPrompt').innerHTML = '🔁 Try again';
@@ -3031,6 +3084,97 @@ function wwgSmack(m, e){
   }
 }
 $('#wwAgain').addEventListener('click', ()=>{ if(WWG.target) say(WWG.target); });
+
+/* ============================================================
+   FEED THE MONSTER — reward after every 5 whacks.
+   Tap the cookie to feed it; the monster grows. At 20 it bursts
+   into poop, then resets and she can feed it again.
+   ============================================================ */
+const FEED = { eaten:0, bursting:false, onDone:null };
+function monsterSVG(){
+  return `<svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="66" cy="200" rx="26" ry="12" fill="#6a3fd0"/>
+    <ellipse cx="134" cy="200" rx="26" ry="12" fill="#6a3fd0"/>
+    <path d="M50 44 L42 16 L66 40 Z" fill="#6a3fd0"/>
+    <path d="M150 44 L158 16 L134 40 Z" fill="#6a3fd0"/>
+    <path d="M28 112 Q 28 40 100 40 Q 172 40 172 112 L172 168 Q 172 200 100 200 Q 28 200 28 168 Z" fill="#8a5cf6"/>
+    <ellipse cx="30" cy="132" rx="15" ry="26" fill="#7a4de0"/>
+    <ellipse cx="170" cy="132" rx="15" ry="26" fill="#7a4de0"/>
+    <ellipse cx="100" cy="156" rx="52" ry="42" fill="#a884f9"/>
+    <circle cx="72" cy="78" r="26" fill="#fff"/><circle cx="128" cy="78" r="26" fill="#fff"/>
+    <circle cx="78" cy="84" r="12" fill="#231235"/><circle cx="122" cy="84" r="12" fill="#231235"/>
+    <circle cx="82" cy="80" r="4" fill="#fff"/><circle cx="126" cy="80" r="4" fill="#fff"/>
+    <path d="M62 118 Q 100 178 138 118 Q 100 146 62 118 Z" fill="#3a1150"/>
+    <ellipse cx="100" cy="150" rx="20" ry="12" fill="#ff6f91"/>
+    <path d="M74 122 L80 137 L88 123 Z M112 123 L120 137 L126 122 Z" fill="#fff"/>
+  </svg>`;
+}
+function renderFeedCount(){
+  let h = ''; for(let i=0;i<20;i++) h += `<span class="feed-pip${i<FEED.eaten?' on':''}"></span>`;
+  $('#feedCount').innerHTML = h;
+}
+function startFeedGame(onDone){
+  show('feed');
+  FEED.onDone = onDone; FEED.eaten = 0; FEED.bursting = false;
+  $('#monsterInner').innerHTML = monsterSVG();
+  $('#monster').style.setProperty('--mscale', 1);
+  $('#monsterInner').classList.remove('shake');
+  $('#monster').classList.remove('hidden'); $('#cookieBtn').classList.remove('hidden');
+  $('#feedBurst').classList.add('hidden'); $('#feedBurst').innerHTML = '';
+  renderFeedCount();
+}
+function feedCookie(){
+  if(FEED.bursting || !$('#feed').classList.contains('active')) return;
+  // fly a cookie from the button to the monster's mouth
+  const b = $('#cookieBtn').getBoundingClientRect();
+  const mon = $('#monster').getBoundingClientRect();
+  const c = document.createElement('div'); c.className = 'fly-cookie'; c.textContent = '🍪';
+  const x0 = b.left + b.width/2, y0 = b.top + b.height/2;
+  c.style.left = x0+'px'; c.style.top = y0+'px';
+  document.body.appendChild(c);
+  const tx = (mon.left + mon.width/2) - x0, ty = (mon.top + mon.height*0.45) - y0;
+  requestAnimationFrame(()=>{ c.style.transform = `translate(${tx}px,${ty}px) scale(.3)`; c.style.opacity = '.2'; });
+  beep(680, 0.06, 'square', 0.1);
+  setTimeout(()=>{ c.remove(); chompGrow(); }, 340);
+}
+function chompGrow(){
+  if(FEED.bursting) return;
+  FEED.eaten++;
+  const inner = $('#monsterInner');
+  inner.classList.remove('chomp'); void inner.offsetWidth; inner.classList.add('chomp');
+  $('#monster').style.setProperty('--mscale', (1 + FEED.eaten*0.055).toFixed(3));
+  beep(260 + FEED.eaten*12, 0.09, 'sine', 0.16);   // nom
+  renderFeedCount();
+  if(FEED.eaten >= 20) burstMonster();
+}
+function burstMonster(){
+  FEED.bursting = true;
+  const inner = $('#monsterInner'); inner.classList.add('shake');
+  beep(110, 0.35, 'sawtooth', 0.2);
+  setTimeout(()=>{
+    $('#monster').classList.add('hidden');
+    const burst = $('#feedBurst'); burst.classList.remove('hidden');
+    burst.innerHTML = '<div class="big-poop">💩</div>';
+    const stage = $('#feedStage').getBoundingClientRect();
+    for(let i=0;i<12;i++){
+      const p = document.createElement('div'); p.className = 'fly-poop'; p.textContent = '💩';
+      burst.appendChild(p);
+      const ang = (i/12)*Math.PI*2, dist = Math.min(stage.width,stage.height)*0.42;
+      requestAnimationFrame(()=>{ p.style.transform = `translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px)) rotate(${i*40}deg)`; p.style.opacity = '0'; });
+    }
+    if(typeof startGun === 'function') startGun();
+    setTimeout(()=>{                                 // reset and let her feed again
+      burst.classList.add('hidden'); burst.innerHTML = '';
+      FEED.eaten = 0; FEED.bursting = false;
+      $('#monster').style.setProperty('--mscale', 1);
+      inner.classList.remove('shake');
+      $('#monster').classList.remove('hidden');
+      renderFeedCount();
+    }, 1900);
+  }, 620);
+}
+$('#cookieBtn').addEventListener('click', feedCookie);
+$('#feedBack').addEventListener('click', ()=>{ if(FEED.onDone) FEED.onDone(); });
 
 /* ============================================================
    GAME: SPOT THE LETTER — an uppercase-letter hidden-picture hunt.
