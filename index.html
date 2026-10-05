@@ -367,6 +367,10 @@
   .shape-guide{ fill:none; stroke:#f1ecfa; stroke-width:16; stroke-linecap:round; stroke-linejoin:round; }
   /* bright highlighter to guide where the next stroke starts (e.g. the top of A) */
   .shape-hilite{ fill:none; stroke:#ffe23d; stroke-width:22; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+  /* dot on the peak (A); pulses big after the first stroke to call her pen back up */
+  .peak-dot{ fill:#8e3bd6; stroke:#fff; stroke-width:3; transform-box:fill-box; transform-origin:center; }
+  .peak-dot.pulse{ animation:peakpulse .62s ease-in-out infinite; }
+  @keyframes peakpulse{ 0%,100%{ transform:scale(1); fill:#8e3bd6; } 50%{ transform:scale(1.9); fill:#ff3d8a; } }
   .ink-line{ fill:none; stroke:#8e63d6; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
   /* after a letter: trace its shape, or go on */
   .name-choice{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -2659,6 +2663,7 @@ function loadNameTask(){
 // extra highlighter segments drawn on top of the faint outline for some letters.
 // A: the top ∧ (apex → crossbar level) so she knows where the 2nd stroke starts.
 const TRACE_HILITE = { A: ['M100 44 L72.4 152', 'M100 44 L127.6 152'] };
+const TRACE_PEAK = { A: { x:100, y:44 } };   // dot on the peak to guide the 2nd stroke
 function setupShape(task){
   const subs = UPPER_PATHS[task.letter].match(/M[^M]*/g) || [UPPER_PATHS[task.letter]];
   subs.forEach(d=>{
@@ -2671,6 +2676,15 @@ function setupShape(task){
     h.setAttribute('d', d); h.setAttribute('class', 'shape-hilite');
     $('#nGuide').appendChild(h);
   });
+  // a dot on the peak (A) that pulses after the first stroke, to call her pen back up
+  N.peakDot = null;
+  const peak = TRACE_PEAK[task.letter];
+  if(peak){
+    const c = document.createElementNS(NS,'circle');
+    c.setAttribute('cx', peak.x); c.setAttribute('cy', peak.y); c.setAttribute('r', 13);
+    c.setAttribute('class', 'peak-dot');
+    $('#nDots').appendChild(c); N.peakDot = c;
+  }
   // she inks freely; no auto-complete — the teacher/student taps "Done" when finished
   N.inkSegs = [];   // one array of points per finger stroke (pen lifts break the line)
   N.inkEl = document.createElementNS(NS,'path'); N.inkEl.setAttribute('class', 'ink-line');
@@ -2768,7 +2782,13 @@ function nComplete(){
     if(N.done || !N.dragging) return;
     e.preventDefault(); nTouch(e);
   });
-  const up = ()=>{ N.dragging = false; if(!N.done) $('#nPen').classList.add('hidden'); };
+  const up = ()=>{
+    N.dragging = false; if(!N.done) $('#nPen').classList.add('hidden');
+    // after the first finger stroke, pulse the peak dot so she brings her pen back up
+    if(N.mode === 'shape' && N.peakDot && N.inkSegs && N.inkSegs.filter(s=>s.length).length >= 1){
+      N.peakDot.classList.add('pulse');
+    }
+  };
   window.addEventListener('pointerup', up);
   window.addEventListener('pointercancel', up);
 })();
