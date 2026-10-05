@@ -365,6 +365,8 @@
   .done-star{ font-size:clamp(56px,16vw,90px); animation:pop .6s; }
   /* shape mode: very faint letter outline she inks over (no dots to connect) */
   .shape-guide{ fill:none; stroke:#f1ecfa; stroke-width:16; stroke-linecap:round; stroke-linejoin:round; }
+  /* bright highlighter to guide where the next stroke starts (e.g. the top of A) */
+  .shape-hilite{ fill:none; stroke:#ffe23d; stroke-width:22; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
   .ink-line{ fill:none; stroke:#8e63d6; stroke-width:13; stroke-linecap:round; stroke-linejoin:round; }
   /* after a letter: trace its shape, or go on */
   .name-choice{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -2654,12 +2656,20 @@ function loadNameTask(){
   renderNameProgress();
 }
 // shape mode: show a faint outline of the letter and let her ink over it freely
+// extra highlighter segments drawn on top of the faint outline for some letters.
+// A: the top ∧ (apex → crossbar level) so she knows where the 2nd stroke starts.
+const TRACE_HILITE = { A: ['M100 44 L72.4 152', 'M100 44 L127.6 152'] };
 function setupShape(task){
   const subs = UPPER_PATHS[task.letter].match(/M[^M]*/g) || [UPPER_PATHS[task.letter]];
   subs.forEach(d=>{
     const g = document.createElementNS(NS,'path');
     g.setAttribute('d', d); g.setAttribute('class', 'shape-guide');
     $('#nGuide').appendChild(g);
+  });
+  (TRACE_HILITE[task.letter] || []).forEach(d=>{   // bright-yellow guide on top of the outline
+    const h = document.createElementNS(NS,'path');
+    h.setAttribute('d', d); h.setAttribute('class', 'shape-hilite');
+    $('#nGuide').appendChild(h);
   });
   // she inks freely; no auto-complete — the teacher/student taps "Done" when finished
   N.inkSegs = [];   // one array of points per finger stroke (pen lifts break the line)
